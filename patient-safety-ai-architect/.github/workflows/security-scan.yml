@@ -1,0 +1,179 @@
+# Security Scan Workflow
+# Core: SAST + SCA + Secrets + SBOM
+
+name: Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run weekly on Monday at 9 AM KST (0 AM UTC)
+    - cron: '0 0 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # SAST - Static Application Security Testing
+  sast:
+    name: SAST Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install SAST tools
+        run: |
+          pip install bandit semgrep
+
+      - name: Run Bandit (Python SAST)
+        run: |
+          mkdir -p outputs
+          bandit -r backend/app -f sarif -o outputs/sast-bandit.sarif || true
+          bandit -r backend/app -f json -o outputs/sast-bandit.json || true
+
+      - name: Run Semgrep
+        run: |
+          semgrep --config=auto backend/app frontend/src --sarif -o outputs/sast-semgrep.sarif || true
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: outputs/
+        continue-on-error: true
+
+      - name: Upload SAST artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sast-results
+          path: outputs/sast-*.sarif
+
+  # SCA - Software Composition Analysis
+  sca:
+    name: SCA Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install SCA tools
+        run: pip install pip-audit
+
+      - name: Run pip-audit (Python SCA)
+        run: |
+          mkdir -p outputs
+          pip-audit -r backend/requirements.txt -f json -o outputs/sca-python.json || true
+
+      - name: Run npm audit (Node.js SCA)
+        run: |
+          cd frontend
+          npm ci
+          npm audit --json > ../outputs/sca-npm.json || true
+
+      - name: Upload SCA artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sca-results
+          path: outputs/sca-*.json
+
+  # Secrets Scan
+  secrets:
+    name: Secrets Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Gitleaks report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: secrets-results
+          path: results.sarif
+        continue-on-error: true
+
+  # SBOM Generation
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install CycloneDX
+        run: pip install cyclonedx-bom
+
+      - name: Generate Python SBOM
+        run: |
+          mkdir -p outputs
+          pip install -r backend/requirements.txt
+          cyclonedx-py environment -o outputs/sbom-python.json
+
+      - name: Generate Node.js SBOM (using Syft)
+        uses: anchore/sbom-action@v0
+        with:
+          path: frontend/
+          format: cyclonedx-json
+          output-file: outputs/sbom-frontend.json
+
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-results
+          path: outputs/sbom-*.json
+
+  # Security Summary Report
+  report:
+    name: Security Report
+    runs-on: ubuntu-latest
+    needs: [sast, sca, secrets, sbom]
+    if: always()
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate Summary
+        run: |
+          echo "# Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Scan | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| SAST | ${{ needs.sast.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SCA | ${{ needs.sca.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secrets | ${{ needs.secrets.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| SBOM | ${{ needs.sbom.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See artifacts for detailed reports." >> $GITHUB_STEP_SUMMARY

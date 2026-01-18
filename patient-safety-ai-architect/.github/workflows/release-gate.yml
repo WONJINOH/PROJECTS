@@ -1,0 +1,131 @@
+# Release Gate Workflow
+# Final approval check before release
+
+name: Release Gate
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  gate-check:
+    name: Release Gate Check
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check PIPA Evidence
+        id: pipa
+        run: |
+          echo "Checking PIPA evidence documents..."
+          MISSING=""
+
+          if [ ! -f "docs/pipa-checklist.md" ]; then
+            MISSING="$MISSING pipa-checklist.md"
+          fi
+
+          if [ -n "$MISSING" ]; then
+            echo "missing=$MISSING" >> $GITHUB_OUTPUT
+            echo "::warning::Missing PIPA evidence: $MISSING"
+          else
+            echo "missing=" >> $GITHUB_OUTPUT
+            echo "✅ All PIPA evidence present"
+          fi
+
+      - name: Download Security Scan Results
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: security-scan.yml
+          name: sast-results
+          path: scan-results/
+        continue-on-error: true
+
+      - name: Check Security Findings
+        id: security
+        run: |
+          echo "Checking security scan results..."
+          HIGH_COUNT=0
+
+          if [ -f "scan-results/sast-bandit.json" ]; then
+            HIGH_COUNT=$(cat scan-results/sast-bandit.json | jq '[.results[] | select(.issue_severity == "HIGH")] | length' 2>/dev/null || echo "0")
+          fi
+
+          echo "high_count=$HIGH_COUNT" >> $GITHUB_OUTPUT
+
+          if [ "$HIGH_COUNT" -gt 0 ]; then
+            echo "::error::Found $HIGH_COUNT HIGH severity findings"
+          else
+            echo "✅ No HIGH severity findings"
+          fi
+
+      - name: Check Required Files
+        id: files
+        run: |
+          echo "Checking required files..."
+          MISSING=""
+
+          REQUIRED_FILES=(
+            "backend/requirements.txt"
+            "frontend/package.json"
+            "docker-compose.yml"
+            "CLAUDE.md"
+          )
+
+          for file in "${REQUIRED_FILES[@]}"; do
+            if [ ! -f "$file" ]; then
+              MISSING="$MISSING $file"
+            fi
+          done
+
+          if [ -n "$MISSING" ]; then
+            echo "missing=$MISSING" >> $GITHUB_OUTPUT
+            echo "::warning::Missing required files: $MISSING"
+          else
+            echo "missing=" >> $GITHUB_OUTPUT
+            echo "✅ All required files present"
+          fi
+
+      - name: Gate Decision
+        run: |
+          echo "# Release Gate Decision" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          PASS=true
+
+          # Check PIPA evidence
+          if [ -n "${{ steps.pipa.outputs.missing }}" ]; then
+            echo "❌ **FAIL**: Missing PIPA evidence: ${{ steps.pipa.outputs.missing }}" >> $GITHUB_STEP_SUMMARY
+            PASS=false
+          else
+            echo "✅ PIPA evidence complete" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check security findings
+          if [ "${{ steps.security.outputs.high_count }}" -gt 0 ]; then
+            echo "❌ **FAIL**: ${{ steps.security.outputs.high_count }} HIGH severity findings" >> $GITHUB_STEP_SUMMARY
+            PASS=false
+          else
+            echo "✅ No HIGH severity findings" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check required files
+          if [ -n "${{ steps.files.outputs.missing }}" ]; then
+            echo "❌ **FAIL**: Missing files: ${{ steps.files.outputs.missing }}" >> $GITHUB_STEP_SUMMARY
+            PASS=false
+          else
+            echo "✅ All required files present" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$PASS" = true ]; then
+            echo "## ✅ GATE PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ❌ GATE FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please resolve the issues above before merging." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi

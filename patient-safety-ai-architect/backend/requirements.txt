@@ -1,0 +1,54 @@
+# Patient Safety AI Architect - Backend Dependencies
+# Python 3.11+
+
+# === Core Framework ===
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+
+# === Database ===
+sqlalchemy==2.0.25
+asyncpg==0.29.0          # PostgreSQL async driver
+alembic==1.13.1          # Database migrations
+sqlalchemy-utils==0.41.1 # Encrypted columns
+
+# === Authentication & Security ===
+python-jose[cryptography]==3.3.0  # JWT
+passlib[bcrypt]==1.7.4            # Password hashing
+argon2-cffi==23.1.0               # Argon2 hashing (recommended)
+cryptography==42.0.2              # Encryption
+
+# === Validation ===
+pydantic==2.6.1
+pydantic-settings==2.1.0
+email-validator==2.1.0
+
+# === FHIR & Healthcare (Future) ===
+# fhir.resources==7.1.0
+
+# === AI/ML (Future Expansion) ===
+# langchain==0.1.0
+# scikit-learn==1.4.0
+# tensorflow==2.15.0
+# shap==0.44.0
+
+# === Monitoring & Logging ===
+structlog==24.1.0                 # Structured logging
+opentelemetry-api==1.22.0
+opentelemetry-sdk==1.22.0
+opentelemetry-instrumentation-fastapi==0.43b0
+
+# === Testing ===
+pytest==8.0.0
+pytest-asyncio==0.23.4
+pytest-cov==4.1.0
+httpx==0.26.0                     # Async test client
+
+# === Security Scanning (Dev) ===
+bandit==1.7.7                     # SAST
+pip-audit==2.7.0                  # SCA
+safety==3.0.1                     # Dependency check
+
+# === Code Quality ===
+ruff==0.2.1                       # Linter + formatter
+mypy==1.8.0                       # Type checking

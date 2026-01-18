@@ -1,0 +1,118 @@
+# Patient Safety System - Git Ignore
+
+# === Secrets & Credentials ===
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+.env/
+ENV/
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.log
+.hypothesis/
+.ruff_cache/
+
+# === Node.js ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+*.tsbuildinfo
+
+# === Build outputs ===
+frontend/dist/
+backend/build/
+*.bundle.js
+
+# === IDE ===
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
+
+# === OS ===
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# === Docker ===
+docker-compose.override.yml
+
+# === Database ===
+*.sqlite
+*.sqlite3
+*.db
+
+# === Uploads (local storage) ===
+uploads/
+!uploads/.gitkeep
+
+# === Test outputs ===
+outputs/
+!outputs/.gitkeep
+test-results/
+playwright-report/
+coverage/
+
+# === Security scan outputs (should be in CI artifacts) ===
+*.sarif
+sbom*.json
+
+# === Logs ===
+logs/
+*.log
+npm-debug.log*
+
+# === Temporary files ===
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup

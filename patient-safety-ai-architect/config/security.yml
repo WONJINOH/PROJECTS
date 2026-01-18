@@ -1,0 +1,131 @@
+# Patient Safety System - Security Configuration
+# Layered security settings for different scenarios
+
+# Core settings (always active)
+core:
+  # Encryption
+  encryption:
+    algorithm: AES-256-GCM
+    key_derivation: PBKDF2
+    password_hash: argon2id
+
+  # TLS
+  tls:
+    min_version: "1.2"
+    preferred_version: "1.3"
+    ciphers:
+      - TLS_AES_256_GCM_SHA384
+      - TLS_CHACHA20_POLY1305_SHA256
+      - ECDHE-ECDSA-AES256-GCM-SHA384
+      - ECDHE-RSA-AES256-GCM-SHA384
+
+  # Session
+  session:
+    token_expire_minutes: 30
+    refresh_token_days: 7
+    max_concurrent_sessions: 3
+
+  # Rate limiting
+  rate_limit:
+    login_attempts: 5
+    login_window_minutes: 15
+    api_requests_per_minute: 100
+
+  # Audit logging
+  audit:
+    enabled: true
+    retention_years: 5
+    events:
+      - authentication
+      - data_access
+      - data_modification
+      - export
+      - approval
+
+# PIPA compliance (Korean QI - Phase 1)
+pipa:
+  enabled: true
+
+  # Data minimization
+  data_minimization:
+    collect_only_necessary: true
+    auto_pseudonymization: false  # Manual review required
+
+  # Retention
+  retention:
+    incident_records_years: 3
+    audit_logs_years: 5
+    attachments: same_as_incident
+
+  # Access control
+  access_control:
+    rbac_enabled: true
+    row_level_security: true
+    department_isolation: true
+
+  # Consent (internal system - legal basis)
+  consent:
+    basis: legal_obligation  # 의료법 시행규칙 제42조
+    explicit_consent_required: false
+
+# HIPAA compliance (US expansion - Phase 2)
+hipaa:
+  enabled: false  # Enable when expanding to US
+
+  # Technical safeguards
+  safeguards:
+    access_control: true
+    audit_controls: true
+    integrity_controls: true
+    transmission_security: true
+
+  # PHI handling
+  phi:
+    encryption_at_rest: true
+    encryption_in_transit: true
+    minimum_necessary: true
+    de_identification: false  # Not required for covered entity
+
+  # BAA requirements
+  baa:
+    required_for_vendors: true
+    cloud_provider: AWS  # HIPAA-eligible
+
+# MFDS/SaMD compliance (Medical device - Phase 3)
+mfds:
+  enabled: false  # Enable when pursuing medical device certification
+
+  # Software lifecycle
+  lifecycle:
+    design_control: true
+    risk_management: true
+    verification_validation: true
+
+  # Traceability
+  traceability:
+    requirements_to_tests: true
+    change_control: true
+    anomaly_tracking: true
+
+  # Clinical evaluation
+  clinical:
+    evidence_required: true
+    post_market_surveillance: true
+
+# Environment-specific overrides
+environments:
+  development:
+    debug: true
+    ssl_verify: false
+    audit_to_console: true
+
+  staging:
+    debug: false
+    ssl_verify: true
+    audit_to_console: false
+
+  production:
+    debug: false
+    ssl_verify: true
+    audit_to_console: false
+    additional_monitoring: true
