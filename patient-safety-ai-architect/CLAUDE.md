@@ -63,3 +63,52 @@ PASS when:
 ## Escalation
 - DPO / Legal: PIPA interpretation, retention, disposal, outsourcing/3rd party issues.
 - Hospital security officer: infrastructure/security policy conflicts.
+
+## Plugin & Tool Usage Guide
+
+### Available Plugins
+| Plugin | Command/Usage | Purpose |
+|--------|---------------|---------|
+| **feature-dev** | `/feature-dev` | Guided feature development with architecture focus |
+| **frontend-design** | `/frontend-design` | High-quality UI/UX design for React components |
+| **playwright** | MCP tools `mcp__playwright__*` | Browser automation & E2E testing |
+| **context7** | MCP tools `mcp__context7__*` | Latest library documentation lookup |
+| **hookify** | `/hookify` | Create and manage Claude Code hooks |
+
+### When to Use Each Plugin
+
+#### feature-dev
+Use for new feature implementation:
+- Adding new API endpoints
+- Creating new pages/components
+- Implementing complex business logic
+
+#### frontend-design
+Use for UI work:
+- Designing new pages (IndicatorList, IndicatorForm, etc.)
+- Improving existing component designs
+- Creating responsive layouts
+
+#### playwright (MCP)
+Use for testing:
+```
+mcp__playwright__browser_navigate → Navigate to page
+mcp__playwright__browser_snapshot → Capture page state
+mcp__playwright__browser_click → Interact with elements
+```
+
+#### context7 (MCP)
+Use for documentation lookup:
+```
+mcp__context7__resolve-library-id → Find library ID
+mcp__context7__query-docs → Get latest docs (React, FastAPI, SQLAlchemy, etc.)
+```
+
+### Project-Specific Hooks
+Located in `.claude/hooks/`:
+- `pii-protection.md` - Prevents real PII in code
+- `security-check.md` - Blocks security vulnerabilities
+- `api-schema-sync.md` - Ensures model/schema sync
+- `rbac-check.md` - Verifies API authorization
+- `migration-reminder.md` - Reminds Alembic migrations
+- `test-reminder.md` - Prompts test updates

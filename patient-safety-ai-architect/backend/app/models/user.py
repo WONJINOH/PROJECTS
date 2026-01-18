@@ -7,6 +7,7 @@ Roles:
 - VICE_CHAIR: 부원장 (Vice Chairman)
 - DIRECTOR: 원장 (Director)
 - ADMIN: 시스템관리자 (System Admin)
+- MASTER: 슈퍼유저 (all permissions)
 """
 
 import enum
@@ -27,6 +28,7 @@ class Role(str, enum.Enum):
     VICE_CHAIR = "vice_chair"
     DIRECTOR = "director"
     ADMIN = "admin"
+    MASTER = "master"
 
 
 class User(Base):

@@ -6,6 +6,9 @@ import Dashboard from '@/pages/Dashboard'
 import IncidentReport from '@/pages/IncidentReport'
 import IncidentList from '@/pages/IncidentList'
 import IncidentDetail from '@/pages/IncidentDetail'
+import IndicatorList from '@/pages/IndicatorList'
+import IndicatorForm from '@/pages/IndicatorForm'
+import IndicatorDetail from '@/pages/IndicatorDetail'
 import AccessLog from '@/pages/AccessLog'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -43,6 +46,10 @@ function App() {
         <Route path="incidents" element={<IncidentList />} />
         <Route path="incidents/new" element={<IncidentReport />} />
         <Route path="incidents/:id" element={<IncidentDetail />} />
+        <Route path="indicators" element={<IndicatorList />} />
+        <Route path="indicators/new" element={<IndicatorForm />} />
+        <Route path="indicators/:id" element={<IndicatorDetail />} />
+        <Route path="indicators/:id/edit" element={<IndicatorForm />} />
         <Route path="access-log" element={<AccessLog />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

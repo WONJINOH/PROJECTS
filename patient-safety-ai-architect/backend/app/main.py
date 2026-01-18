@@ -16,7 +16,7 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import incidents, attachments, approvals, auth
+from app.api import incidents, attachments, approvals, auth, indicators
 from app.security.audit import AuditMiddleware
 
 
@@ -57,6 +57,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(incidents.router, prefix="/api/incidents", tags=["Incidents"])
 app.include_router(attachments.router, prefix="/api/attachments", tags=["Attachments"])
 app.include_router(approvals.router, prefix="/api/approvals", tags=["Approvals"])
+app.include_router(indicators.router, prefix="/api/indicators", tags=["Indicators"])
 
 
 @app.get("/api/health")

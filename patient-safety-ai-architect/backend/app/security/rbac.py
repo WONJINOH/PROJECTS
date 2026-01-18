@@ -7,6 +7,7 @@ Roles:
 - VICE_CHAIR: All access + L2 approval
 - DIRECTOR: All access + L3 approval + archive
 - ADMIN: System config only (no data access)
+- MASTER: All permissions (superuser)
 """
 
 from enum import Enum
@@ -40,6 +41,12 @@ class Permission(str, Enum):
     VIEW_AUDIT_LOGS = "view_audit_logs"
     SYSTEM_CONFIG = "system_config"
 
+    # Indicator permissions
+    VIEW_INDICATORS = "view_indicators"
+    MANAGE_INDICATORS = "manage_indicators"
+    INPUT_INDICATOR_VALUES = "input_indicator_values"
+    VERIFY_INDICATOR_VALUES = "verify_indicator_values"
+
 
 # Role-Permission mapping
 ROLE_PERMISSIONS: dict[Role, Set[Permission]] = {
@@ -49,6 +56,7 @@ ROLE_PERMISSIONS: dict[Role, Set[Permission]] = {
         Permission.EDIT_INCIDENT,  # Own draft only (row-level)
         Permission.UPLOAD_ATTACHMENT,  # Own incidents only
         Permission.VIEW_ATTACHMENT,  # Own incidents only
+        Permission.VIEW_INDICATORS,  # View only
     },
     Role.QPS_STAFF: {
         Permission.CREATE_INCIDENT,
@@ -59,6 +67,8 @@ ROLE_PERMISSIONS: dict[Role, Set[Permission]] = {
         Permission.VIEW_ATTACHMENT,
         Permission.DELETE_ATTACHMENT,  # Own uploads
         Permission.APPROVE_L1,
+        Permission.VIEW_INDICATORS,
+        Permission.INPUT_INDICATOR_VALUES,
     },
     Role.VICE_CHAIR: {
         Permission.CREATE_INCIDENT,
@@ -70,6 +80,9 @@ ROLE_PERMISSIONS: dict[Role, Set[Permission]] = {
         Permission.DELETE_ATTACHMENT,
         Permission.APPROVE_L1,
         Permission.APPROVE_L2,
+        Permission.VIEW_INDICATORS,
+        Permission.INPUT_INDICATOR_VALUES,
+        Permission.VERIFY_INDICATOR_VALUES,
     },
     Role.DIRECTOR: {
         Permission.CREATE_INCIDENT,
@@ -83,6 +96,10 @@ ROLE_PERMISSIONS: dict[Role, Set[Permission]] = {
         Permission.APPROVE_L1,
         Permission.APPROVE_L2,
         Permission.APPROVE_L3,
+        Permission.VIEW_INDICATORS,
+        Permission.MANAGE_INDICATORS,
+        Permission.INPUT_INDICATOR_VALUES,
+        Permission.VERIFY_INDICATOR_VALUES,
     },
     Role.ADMIN: {
         Permission.MANAGE_USERS,
@@ -90,6 +107,7 @@ ROLE_PERMISSIONS: dict[Role, Set[Permission]] = {
         Permission.SYSTEM_CONFIG,
         # Note: ADMIN has NO data access permissions
     },
+    Role.MASTER: set(Permission),  # All permissions (superuser)
 }
 
 

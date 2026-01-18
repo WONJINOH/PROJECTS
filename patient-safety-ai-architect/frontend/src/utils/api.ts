@@ -101,3 +101,52 @@ export interface CreateIncidentData {
   improvements?: string
   department?: string
 }
+
+import type {
+  CreateIndicatorData,
+  CreateIndicatorValueData,
+  IndicatorCategory,
+  IndicatorStatusType,
+} from '@/types'
+
+// Indicator API
+export const indicatorApi = {
+  list: (params?: {
+    category?: IndicatorCategory
+    status?: IndicatorStatusType
+    is_key?: boolean
+    search?: string
+    skip?: number
+    limit?: number
+  }) => api.get('/api/indicators', { params }),
+
+  get: (id: number) => api.get(`/api/indicators/${id}`),
+
+  create: (data: CreateIndicatorData) => api.post('/api/indicators', data),
+
+  update: (id: number, data: Partial<CreateIndicatorData>) =>
+    api.put(`/api/indicators/${id}`, data),
+
+  delete: (id: number) => api.delete(`/api/indicators/${id}`),
+
+  // Value operations
+  listValues: (
+    indicatorId: number,
+    params?: {
+      start_date?: string
+      end_date?: string
+      verified_only?: boolean
+      skip?: number
+      limit?: number
+    }
+  ) => api.get(`/api/indicators/${indicatorId}/values`, { params }),
+
+  createValue: (indicatorId: number, data: CreateIndicatorValueData) =>
+    api.post(`/api/indicators/${indicatorId}/values`, data),
+
+  updateValue: (valueId: number, data: Partial<CreateIndicatorValueData>) =>
+    api.put(`/api/indicators/values/${valueId}`, data),
+
+  verifyValue: (valueId: number, comment?: string) =>
+    api.post(`/api/indicators/values/${valueId}/verify`, { comment }),
+}

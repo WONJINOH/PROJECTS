@@ -7,12 +7,14 @@ import {
   ClipboardList,
   LogOut,
   Shield,
+  BarChart2,
 } from 'lucide-react'
 
 const navigation = [
   { name: '대시보드', href: '/dashboard', icon: LayoutDashboard },
   { name: '사고 목록', href: '/incidents', icon: FileText },
   { name: '사고 보고', href: '/incidents/new', icon: FilePlus },
+  { name: '지표 관리', href: '/indicators', icon: BarChart2 },
   { name: '접근 로그', href: '/access-log', icon: ClipboardList },
 ]
 

@@ -19,7 +19,7 @@ import enum
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, Boolean, JSON, Float
+from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, Boolean, Float, ForeignKey
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -35,7 +35,30 @@ class IndicatorCategory(str, enum.Enum):
     INFECTION = "infection"              # 감염 관리
     STAFF_SAFETY = "staff_safety"        # 직원 안전
     LAB_TAT = "lab_tat"                  # 검사 TAT
-    OVERALL = "overall"                  # 종합 환자안전 지표
+    COMPOSITE = "composite"              # 종합 환자안전 지표
+
+
+class ThresholdDirection(str, enum.Enum):
+    """임계값 방향"""
+    HIGHER_IS_BETTER = "higher_is_better"
+    LOWER_IS_BETTER = "lower_is_better"
+
+
+class PeriodType(str, enum.Enum):
+    """집계 주기"""
+    DAILY = "daily"
+    WEEKLY = "weekly"
+    MONTHLY = "monthly"
+    QUARTERLY = "quarterly"
+    YEARLY = "yearly"
+
+
+class ChartType(str, enum.Enum):
+    """차트 유형"""
+    LINE = "line"
+    BAR = "bar"
+    PIE = "pie"
+    AREA = "area"
 
 
 class IndicatorStatus(str, enum.Enum):
@@ -55,45 +78,43 @@ class IndicatorConfig(Base):
     # 기본 정보
     code = Column(String(50), unique=True, nullable=False, index=True)  # 예: PSR-001, FALL-001
     name = Column(String(200), nullable=False)
-    name_en = Column(String(200), nullable=True)
     description = Column(Text, nullable=True)
 
     # 분류
     category = Column(Enum(IndicatorCategory), nullable=False, index=True)
-    subcategory = Column(String(100), nullable=True)  # 세부 분류
 
     # 계산 방식
-    formula = Column(Text, nullable=True)  # 계산 공식 설명
-    numerator_desc = Column(String(500), nullable=True)  # 분자 설명
-    denominator_desc = Column(String(500), nullable=True)  # 분모 설명
-    unit = Column(String(50), default="%")  # 단위 (%, ‰, 건, 점 등)
+    calculation_formula = Column(Text, nullable=True)  # 계산 공식 설명
+    numerator_name = Column(String(500), nullable=True)  # 분자 설명
+    denominator_name = Column(String(500), nullable=True)  # 분모 설명
+    unit = Column(String(50), default="건")  # 단위 (%, ‰, 건, 점 등)
 
     # 목표값 및 기준
     target_value = Column(Float, nullable=True)  # 목표값
-    threshold_good = Column(Float, nullable=True)  # 양호 기준
-    threshold_warning = Column(Float, nullable=True)  # 주의 기준
-    threshold_critical = Column(Float, nullable=True)  # 위험 기준
+    warning_threshold = Column(Float, nullable=True)  # 경고 기준
+    critical_threshold = Column(Float, nullable=True)  # 위험 기준
+    threshold_direction = Column(Enum(ThresholdDirection), nullable=True)  # 높을수록/낮을수록 좋음
 
     # 표시 설정
+    period_type = Column(Enum(PeriodType), default=PeriodType.MONTHLY)  # 집계 주기
+    chart_type = Column(Enum(ChartType), default=ChartType.LINE)  # 차트 유형
+    is_key_indicator = Column(Boolean, default=False)  # 핵심 지표 여부 (★ 표시)
     display_order = Column(Integer, default=0)  # 표시 순서
-    chart_type = Column(String(50), default="line")  # line, bar, pie, heatmap, gauge
-    color = Column(String(20), nullable=True)  # 차트 색상
+
+    # 데이터 소스
+    data_source = Column(String(200), nullable=True)  # 데이터 출처 (PSR 시스템, EMR 등)
+    auto_calculate = Column(Boolean, default=False)  # 자동 계산 여부
 
     # 상태
     status = Column(Enum(IndicatorStatus), default=IndicatorStatus.ACTIVE)
-    is_core = Column(Boolean, default=False)  # 핵심 지표 여부 (삭제 불가)
-
-    # 데이터 소스
-    data_source = Column(String(100), nullable=True)  # 데이터 출처 (manual, emr, external)
-    collection_frequency = Column(String(50), default="monthly")  # daily, weekly, monthly, quarterly
 
     # 메타데이터
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    created_by = Column(Integer, nullable=True)
+    created_by_id = Column(Integer, nullable=True)
 
-    # 추가 설정 (JSON)
-    extra_config = Column(JSON, nullable=True)  # 지표별 추가 설정
+    # Relationships
+    values = relationship("IndicatorValue", back_populates="indicator", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<Indicator {self.code}: {self.name}>"
@@ -107,31 +128,30 @@ class IndicatorValue(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     # 지표 연결
-    indicator_id = Column(Integer, nullable=False, index=True)
+    indicator_id = Column(Integer, ForeignKey("indicator_configs.id", ondelete="CASCADE"), nullable=False, index=True)
 
     # 기간
-    period_type = Column(String(20), nullable=False)  # daily, weekly, monthly, quarterly, yearly
     period_start = Column(DateTime, nullable=False, index=True)
     period_end = Column(DateTime, nullable=False)
 
     # 값
+    value = Column(Float, nullable=False)  # 계산된 지표값
     numerator = Column(Float, nullable=True)  # 분자
     denominator = Column(Float, nullable=True)  # 분모
-    value = Column(Float, nullable=False)  # 계산된 지표값
-
-    # 부서별 (선택)
-    department = Column(String(100), nullable=True, index=True)
 
     # 메타데이터
-    data_source = Column(String(100), nullable=True)  # 데이터 출처
-    note = Column(Text, nullable=True)  # 비고
+    notes = Column(Text, nullable=True)  # 비고
     created_at = Column(DateTime, default=datetime.utcnow)
-    created_by = Column(Integer, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by_id = Column(Integer, nullable=True)
 
     # 검증
     is_verified = Column(Boolean, default=False)
-    verified_by = Column(Integer, nullable=True)
+    verified_by_id = Column(Integer, nullable=True)
     verified_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    indicator = relationship("IndicatorConfig", back_populates="values")
 
     def __repr__(self) -> str:
         return f"<IndicatorValue {self.indicator_id} @ {self.period_start}: {self.value}>"
