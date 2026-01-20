@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query'
 import {
   BarChart,
   Bar,
@@ -12,7 +11,6 @@ import {
   Cell,
 } from 'recharts'
 import { AlertTriangle, FileText, CheckCircle, Clock } from 'lucide-react'
-import { api } from '@/utils/api'
 
 // Mock data for dashboard (replace with API calls)
 const mockStats = {

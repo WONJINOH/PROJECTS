@@ -3,6 +3,7 @@ from app.models.user import User, Role
 from app.models.incident import Incident, IncidentCategory, IncidentGrade
 from app.models.attachment import Attachment
 from app.models.approval import Approval, ApprovalLevel, ApprovalStatus
+from app.models.action import Action, ActionStatus, ActionPriority
 from app.models.audit import AuditLog, AuditEventType
 
 # Indicator System
@@ -97,6 +98,9 @@ __all__ = [
     "Approval",
     "ApprovalLevel",
     "ApprovalStatus",
+    "Action",
+    "ActionStatus",
+    "ActionPriority",
     "AuditLog",
     "AuditEventType",
     # Indicator

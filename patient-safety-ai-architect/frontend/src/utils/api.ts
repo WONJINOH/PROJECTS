@@ -105,8 +105,12 @@ export interface CreateIncidentData {
 import type {
   CreateIndicatorData,
   CreateIndicatorValueData,
+  CreateFallDetailData,
+  CreateMedicationDetailData,
+  CreateActionData,
   IndicatorCategory,
   IndicatorStatusType,
+  ActionStatus,
 } from '@/types'
 
 // Indicator API
@@ -149,4 +153,70 @@ export const indicatorApi = {
 
   verifyValue: (valueId: number, comment?: string) =>
     api.post(`/api/indicators/values/${valueId}/verify`, { comment }),
+}
+
+// Fall Detail API
+export const fallDetailApi = {
+  getByIncident: (incidentId: number) =>
+    api.get(`/api/fall-details/incident/${incidentId}`),
+
+  get: (id: number) =>
+    api.get(`/api/fall-details/${id}`),
+
+  create: (data: CreateFallDetailData) =>
+    api.post('/api/fall-details', data),
+
+  update: (id: number, data: Partial<CreateFallDetailData>) =>
+    api.put(`/api/fall-details/${id}`, data),
+
+  delete: (id: number) =>
+    api.delete(`/api/fall-details/${id}`),
+}
+
+// Medication Detail API
+export const medicationDetailApi = {
+  getByIncident: (incidentId: number) =>
+    api.get(`/api/medication-details/incident/${incidentId}`),
+
+  get: (id: number) =>
+    api.get(`/api/medication-details/${id}`),
+
+  create: (data: CreateMedicationDetailData) =>
+    api.post('/api/medication-details', data),
+
+  update: (id: number, data: Partial<CreateMedicationDetailData>) =>
+    api.put(`/api/medication-details/${id}`, data),
+
+  delete: (id: number) =>
+    api.delete(`/api/medication-details/${id}`),
+}
+
+// Action API (CAPA)
+export const actionApi = {
+  listByIncident: (incidentId: number, params?: { status?: ActionStatus; skip?: number; limit?: number }) =>
+    api.get(`/api/actions/incident/${incidentId}`, { params }),
+
+  get: (id: number) =>
+    api.get(`/api/actions/${id}`),
+
+  create: (data: CreateActionData) =>
+    api.post('/api/actions', data),
+
+  update: (id: number, data: Partial<CreateActionData>) =>
+    api.put(`/api/actions/${id}`, data),
+
+  start: (id: number) =>
+    api.post(`/api/actions/${id}/start`),
+
+  complete: (id: number, data: { completion_notes?: string; evidence_attachment_id?: number }) =>
+    api.post(`/api/actions/${id}/complete`, data),
+
+  verify: (id: number, data: { verification_notes?: string }) =>
+    api.post(`/api/actions/${id}/verify`, data),
+
+  cancel: (id: number) =>
+    api.post(`/api/actions/${id}/cancel`),
+
+  listOverdue: () =>
+    api.get('/api/actions/overdue'),
 }

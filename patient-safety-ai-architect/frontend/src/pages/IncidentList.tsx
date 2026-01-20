@@ -1,82 +1,113 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, Search, Filter, ChevronLeft, ChevronRight, Loader2, AlertCircle } from 'lucide-react'
 import { incidentApi } from '@/utils/api'
+import type { Incident, IncidentCategory, IncidentGrade, IncidentStatus, PaginatedResponse } from '@/types'
 
-// Mock data (replace with API)
-const mockIncidents = [
-  {
-    id: 1,
-    category: '낙상',
-    grade: 'MILD',
-    location: '301호',
-    occurred_at: '2024-01-15T14:30:00',
-    status: 'submitted',
-    reporter_name: '김간호',
-  },
-  {
-    id: 2,
-    category: '투약',
-    grade: 'NEAR_MISS',
-    location: '402호',
-    occurred_at: '2024-01-14T09:15:00',
-    status: 'approved',
-    reporter_name: null,
-  },
-  {
-    id: 3,
-    category: '욕창',
-    grade: 'MODERATE',
-    location: '205호',
-    occurred_at: '2024-01-13T11:45:00',
-    status: 'draft',
-    reporter_name: '이간호',
-  },
-]
-
-const gradeColors: Record<string, string> = {
-  NEAR_MISS: 'badge-near-miss',
-  NO_HARM: 'badge-no-harm',
-  MILD: 'badge-mild',
-  MODERATE: 'badge-moderate',
-  SEVERE: 'badge-severe',
-  DEATH: 'badge-death',
+const categoryLabels: Record<IncidentCategory, string> = {
+  fall: '낙상',
+  medication: '투약',
+  pressure_ulcer: '욕창',
+  infection: '감염',
+  medical_device: '의료기기',
+  surgery: '수술',
+  transfusion: '수혈',
+  other: '기타',
 }
 
-const gradeLabels: Record<string, string> = {
-  NEAR_MISS: '근접오류',
-  NO_HARM: '위해없음',
-  MILD: '경증',
-  MODERATE: '중등도',
-  SEVERE: '중증',
-  DEATH: '사망',
+const gradeColors: Record<IncidentGrade, string> = {
+  near_miss: 'badge-near-miss',
+  no_harm: 'badge-no-harm',
+  mild: 'badge-mild',
+  moderate: 'badge-moderate',
+  severe: 'badge-severe',
+  death: 'badge-death',
 }
 
-const statusLabels: Record<string, string> = {
+const gradeLabels: Record<IncidentGrade, string> = {
+  near_miss: '근접오류',
+  no_harm: '위해없음',
+  mild: '경증',
+  moderate: '중등도',
+  severe: '중증',
+  death: '사망',
+}
+
+const statusLabels: Record<IncidentStatus, string> = {
   draft: '초안',
   submitted: '제출됨',
   approved: '승인됨',
   closed: '종결',
 }
 
-const statusColors: Record<string, string> = {
+const statusColors: Record<IncidentStatus, string> = {
   draft: 'bg-gray-100 text-gray-800',
   submitted: 'bg-blue-100 text-blue-800',
   approved: 'bg-green-100 text-green-800',
   closed: 'bg-purple-100 text-purple-800',
 }
 
+// Transform snake_case API response to camelCase
+interface ApiIncident {
+  id: number
+  category: IncidentCategory
+  grade: IncidentGrade
+  occurred_at: string
+  location: string
+  description: string
+  immediate_action: string
+  reported_at: string
+  reporter_name?: string
+  root_cause?: string
+  improvements?: string
+  reporter_id: number
+  department?: string
+  status: IncidentStatus
+  created_at: string
+  updated_at: string
+}
+
+function transformIncident(api: ApiIncident): Incident {
+  return {
+    id: api.id,
+    category: api.category,
+    grade: api.grade,
+    occurredAt: api.occurred_at,
+    location: api.location,
+    description: api.description,
+    immediateAction: api.immediate_action,
+    reportedAt: api.reported_at,
+    reporterName: api.reporter_name,
+    rootCause: api.root_cause,
+    improvements: api.improvements,
+    reporterId: api.reporter_id,
+    department: api.department,
+    status: api.status,
+    createdAt: api.created_at,
+    updatedAt: api.updated_at,
+  }
+}
+
 export default function IncidentList() {
+  const navigate = useNavigate()
   const [searchTerm, setSearchTerm] = useState('')
   const [page, setPage] = useState(1)
   const limit = 10
 
-  // TODO: Replace with actual API call
-  // const { data, isLoading } = useQuery({
-  //   queryKey: ['incidents', page, searchTerm],
-  //   queryFn: () => incidentApi.list({ skip: (page - 1) * limit, limit }),
-  // })
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['incidents', page, limit],
+    queryFn: async () => {
+      const response = await incidentApi.list({ skip: (page - 1) * limit, limit })
+      const apiData = response.data as PaginatedResponse<ApiIncident>
+      return {
+        items: apiData.items.map(transformIncident),
+        total: apiData.total,
+        skip: apiData.skip,
+        limit: apiData.limit,
+      }
+    },
+  })
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('ko-KR', {
@@ -87,6 +118,10 @@ export default function IncidentList() {
       minute: '2-digit',
     })
   }
+
+  const incidents = data?.items ?? []
+  const total = data?.total ?? 0
+  const totalPages = Math.ceil(total / limit) || 1
 
   return (
     <div className="space-y-6">
@@ -124,104 +159,136 @@ export default function IncidentList() {
         </div>
       </div>
 
-      {/* Incidents Table */}
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  유형
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  등급
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  장소
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  발생일시
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  상태
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  보고자
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {mockIncidents.map((incident) => (
-                <tr
-                  key={incident.id}
-                  className="hover:bg-gray-50 cursor-pointer"
-                  onClick={() => window.location.href = `/incidents/${incident.id}`}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <Link
-                      to={`/incidents/${incident.id}`}
-                      className="text-sm font-medium text-primary-600 hover:text-primary-800"
-                    >
-                      #{incident.id}
-                    </Link>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {incident.category}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`badge ${gradeColors[incident.grade]}`}>
-                      {gradeLabels[incident.grade]}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {incident.location}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(incident.occurred_at)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`badge ${statusColors[incident.status]}`}>
-                      {statusLabels[incident.status]}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {incident.reporter_name || '-'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Loading State */}
+      {isLoading && (
+        <div className="card flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+          <span className="ml-3 text-gray-500">데이터를 불러오는 중...</span>
         </div>
+      )}
 
-        {/* Pagination */}
-        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-          <p className="text-sm text-gray-500">
-            총 <span className="font-medium">{mockIncidents.length}</span>건
-          </p>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <span className="text-sm text-gray-600">
-              {page} / {Math.ceil(mockIncidents.length / limit) || 1}
-            </span>
-            <button
-              onClick={() => setPage((p) => p + 1)}
-              disabled={page >= Math.ceil(mockIncidents.length / limit)}
-              className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
+      {/* Error State */}
+      {isError && (
+        <div className="card bg-red-50 border-red-200">
+          <div className="flex items-center gap-3 text-red-700">
+            <AlertCircle className="h-5 w-5" />
+            <span>데이터를 불러오는데 실패했습니다: {(error as Error)?.message || '알 수 없는 오류'}</span>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && !isError && incidents.length === 0 && (
+        <div className="card text-center py-12">
+          <p className="text-gray-500">등록된 사고 보고서가 없습니다.</p>
+          <Link to="/incidents/new" className="btn-primary mt-4 inline-flex items-center gap-2">
+            <Plus className="h-4 w-4" />
+            새 보고서 작성
+          </Link>
+        </div>
+      )}
+
+      {/* Incidents Table */}
+      {!isLoading && !isError && incidents.length > 0 && (
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    유형
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    등급
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    장소
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    발생일시
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    상태
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    보고자
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {incidents.map((incident) => (
+                  <tr
+                    key={incident.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => navigate(`/incidents/${incident.id}`)}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Link
+                        to={`/incidents/${incident.id}`}
+                        className="text-sm font-medium text-primary-600 hover:text-primary-800"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        #{incident.id}
+                      </Link>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {categoryLabels[incident.category] || incident.category}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`badge ${gradeColors[incident.grade] || 'bg-gray-100'}`}>
+                        {gradeLabels[incident.grade] || incident.grade}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {incident.location}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {formatDate(incident.occurredAt)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`badge ${statusColors[incident.status] || 'bg-gray-100'}`}>
+                        {statusLabels[incident.status] || incident.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {incident.reporterName || '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              총 <span className="font-medium">{total}</span>건
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              <span className="text-sm text-gray-600">
+                {page} / {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page >= totalPages}
+                className="p-2 rounded-md hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

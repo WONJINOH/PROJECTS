@@ -7,13 +7,15 @@ Medication Safety (투약 안전) Models
 - 고위험 약물 오류 (추후)
 - 근접오류 포착률
 - 바코드 스캔 이행률 (추후)
+
+PSR 양식 기반 필드 (대시보드용)
 """
 
 import enum
 from datetime import datetime, date
 from typing import Optional
 
-from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, Float, Date, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, Float, Date, Boolean, ForeignKey, JSON
 
 from app.database import Base
 
@@ -67,6 +69,33 @@ class HighAlertMedication(str, enum.Enum):
     OTHER = "other"                          # 기타
 
 
+# PSR 양식 기반 추가 Enum들
+class MedicationDiscoveryTiming(str, enum.Enum):
+    """발견 시점 (PSR II항) - 투약 전/후"""
+    PRE_ADMINISTRATION = "pre_administration"    # 투약 전 발견
+    POST_ADMINISTRATION = "post_administration"  # 투약 후 발견
+
+
+class MedicationErrorCause(str, enum.Enum):
+    """오류 원인 (PSR II항)"""
+    COMMUNICATION = "communication"              # 의사소통 오류
+    NAME_CONFUSION = "name_confusion"            # 약품명 혼동
+    LABELING = "labeling"                        # 라벨/표시 문제
+    STORAGE = "storage"                          # 보관 문제
+    STANDARDIZATION = "standardization"          # 표준화 미흡
+    DEVICE_DESIGN = "device_design"              # 기기/설계 문제
+    DISTRACTION = "distraction"                  # 산만/방해
+    WORKLOAD = "workload"                        # 업무과중
+    STAFF_SHORTAGE = "staff_shortage"            # 인력 부족
+    TRAINING = "training"                        # 교육/훈련 부족
+    PATIENT_EDUCATION = "patient_education"      # 환자 교육 부족
+    VERIFICATION_FAILURE = "verification_failure"  # 확인 절차 미이행
+    PRESCRIPTION_ERROR = "prescription_error"    # 처방 오류
+    TRANSCRIPTION_ERROR = "transcription_error"  # 전사 오류
+    DISPENSING_ERROR = "dispensing_error"        # 조제 오류
+    OTHER = "other"                              # 기타
+
+
 class MedicationErrorDetail(Base):
     """투약 오류 상세 기록"""
 
@@ -103,6 +132,18 @@ class MedicationErrorDetail(Base):
     # 발견
     discovered_by_role = Column(String(50), nullable=True)
     discovery_method = Column(String(100), nullable=True)
+
+    # ===== PSR 양식 기반 필드 (대시보드용) =====
+
+    # 발견 시점 (PSR II항) - 투약 전/후
+    discovery_timing = Column(Enum(MedicationDiscoveryTiming), nullable=True, index=True)
+
+    # 오류 원인 (PSR II항) - JSON 배열로 저장 (복수 선택 가능)
+    # 예: ["communication", "workload", "verification_failure"]
+    error_causes = Column(JSON, nullable=True)
+    error_cause_detail = Column(Text, nullable=True)
+
+    # ===== 기존 필드 =====
 
     # 부서
     department = Column(String(100), nullable=False, index=True)

@@ -4,13 +4,15 @@ Fall (낙상) Management Models
 낙상 관리 지표:
 - 낙상 발생률 (1000재원일당)
 - 신체적 손상정도
+
+PSR 양식 기반 필드 (대시보드용)
 """
 
 import enum
 from datetime import datetime, date
 from typing import Optional
 
-from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, Float, Date, Boolean, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, Float, Date, Boolean, ForeignKey, JSON
 
 from app.database import Base
 
@@ -55,6 +57,67 @@ class FallCause(str, enum.Enum):
     OTHER = "other"              # 기타
 
 
+# PSR 양식 기반 추가 Enum들
+class FallConsciousnessLevel(str, enum.Enum):
+    """의식상태 (PSR I항)"""
+    ALERT = "alert"              # 명료
+    DROWSY = "drowsy"            # 기면
+    STUPOR = "stupor"            # 혼미
+    SEMICOMA = "semicoma"        # 반혼수
+    COMA = "coma"                # 혼수
+
+
+class FallActivityLevel(str, enum.Enum):
+    """활동/기능 수준 (PSR I항)"""
+    INDEPENDENT = "independent"          # 독립적
+    NEEDS_ASSISTANCE = "needs_assistance"  # 부분 도움 필요
+    DEPENDENT = "dependent"              # 전적 도움 필요
+
+
+class FallMobilityAid(str, enum.Enum):
+    """보행보조기구 종류 (PSR I항)"""
+    NONE = "none"                # 없음
+    WHEELCHAIR = "wheelchair"    # 휠체어
+    WALKER = "walker"            # 워커
+    CANE = "cane"                # 지팡이
+    CRUTCH = "crutch"            # 목발
+    OTHER = "other"              # 기타
+
+
+class FallType(str, enum.Enum):
+    """낙상 유형 (PSR I항)"""
+    BED_FALL = "bed_fall"              # 침대에서 낙상
+    STANDING_FALL = "standing_fall"    # 서있다가 낙상
+    SITTING_FALL = "sitting_fall"      # 앉아있다가 낙상
+    WALKING_FALL = "walking_fall"      # 보행 중 낙상
+    TRANSFER_FALL = "transfer_fall"    # 이동 중 낙상
+    OTHER = "other"                    # 기타
+
+
+class FallPhysicalInjury(str, enum.Enum):
+    """신체적 손상 유형 (PSR I항)"""
+    NONE = "none"                # 없음
+    ABRASION = "abrasion"        # 찰과상
+    CONTUSION = "contusion"      # 타박상
+    LACERATION = "laceration"    # 열상
+    HEMATOMA = "hematoma"        # 혈종
+    FRACTURE = "fracture"        # 골절
+    HEAD_INJURY = "head_injury"  # 두부손상
+    OTHER = "other"              # 기타
+
+
+class FallTreatment(str, enum.Enum):
+    """치료 내용 (PSR I항)"""
+    OBSERVATION = "observation"      # 관찰
+    DRESSING = "dressing"            # 드레싱
+    SUTURE = "suture"                # 봉합
+    CAST_SPLINT = "cast_splint"      # 부목/석고
+    IMAGING = "imaging"              # 영상검사
+    SURGERY = "surgery"              # 수술
+    TRANSFER = "transfer"            # 전원
+    OTHER = "other"                  # 기타
+
+
 class FallDetail(Base):
     """낙상 상세 기록"""
 
@@ -74,6 +137,31 @@ class FallDetail(Base):
     pre_fall_risk_level = Column(Enum(FallRiskLevel), nullable=True)
     morse_score = Column(Integer, nullable=True)  # Morse Fall Scale 점수
 
+    # ===== PSR 양식 기반 필드 (대시보드용) =====
+
+    # 의식상태 (PSR I항)
+    consciousness_level = Column(Enum(FallConsciousnessLevel), nullable=True, index=True)
+
+    # 활동/기능 수준 (PSR I항)
+    activity_level = Column(Enum(FallActivityLevel), nullable=True, index=True)
+
+    # 보행보조기구 (PSR I항)
+    uses_mobility_aid = Column(Boolean, default=False)
+    mobility_aid_type = Column(Enum(FallMobilityAid), nullable=True)
+
+    # 환자 위험요인 (PSR I항) - JSON 배열로 저장
+    # 예: ["medication", "cognitive_impairment", "visual_impairment", "history_of_fall"]
+    risk_factors = Column(JSON, nullable=True)
+
+    # 관련 투약 (PSR I항) - JSON 배열로 저장
+    # 예: ["sedative", "diuretic", "antihypertensive", "hypoglycemic"]
+    related_medications = Column(JSON, nullable=True)
+
+    # 낙상 유형 (PSR I항)
+    fall_type = Column(Enum(FallType), nullable=True, index=True)
+
+    # ===== 기존 필드 =====
+
     # 발생 상황
     fall_location = Column(Enum(FallLocation), nullable=False)
     fall_location_detail = Column(String(200), nullable=True)
@@ -87,6 +175,15 @@ class FallDetail(Base):
     # 손상 정도
     injury_level = Column(Enum(FallInjuryLevel), nullable=False, index=True)
     injury_description = Column(Text, nullable=True)
+
+    # 신체적 손상 유형 (PSR I항) - 기존 injury_level 보완
+    physical_injury_type = Column(Enum(FallPhysicalInjury), nullable=True, index=True)
+    physical_injury_detail = Column(String(200), nullable=True)
+
+    # 치료 내용 (PSR I항) - JSON 배열로 저장 (복수 선택 가능)
+    # 예: ["observation", "dressing", "imaging"]
+    treatments_provided = Column(JSON, nullable=True)
+    treatment_detail = Column(Text, nullable=True)
 
     # 낙상 시 활동
     activity_at_fall = Column(String(200), nullable=True)  # 이동 중, 배변 중 등

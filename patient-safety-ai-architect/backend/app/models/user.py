@@ -44,13 +44,18 @@ class User(Base):
     role = Column(Enum(Role), default=Role.REPORTER, nullable=False)
     department = Column(String(100), nullable=True)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    last_login = Column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_login = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     incidents = relationship("Incident", back_populates="reporter")
     approvals = relationship("Approval", back_populates="approver")
+    created_actions = relationship(
+        "Action",
+        back_populates="created_by",
+        foreign_keys="[Action.created_by_id]"
+    )
 
     def __repr__(self) -> str:
         return f"<User {self.username} ({self.role.value})>"

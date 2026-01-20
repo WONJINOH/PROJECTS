@@ -36,8 +36,8 @@ class Attachment(Base):
 
     # Metadata
     is_deleted = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    deleted_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     incident = relationship("Incident", back_populates="attachments")

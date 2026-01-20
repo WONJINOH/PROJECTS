@@ -50,8 +50,8 @@ class Approval(Base):
     rejection_reason = Column(Text, nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    decided_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    decided_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     incident = relationship("Incident", back_populates="approvals")

@@ -61,7 +61,7 @@ class AuditLog(Base):
 
     # Event details
     event_type = Column(Enum(AuditEventType), nullable=False, index=True)
-    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    timestamp = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
 
     # Actor
     user_id = Column(Integer, nullable=True, index=True)  # nullable for failed logins
