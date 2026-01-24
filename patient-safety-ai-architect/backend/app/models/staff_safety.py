@@ -10,7 +10,7 @@ Staff Safety & Lab TAT Models
 """
 
 import enum
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional
 
 from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, Float, Date, Boolean, ForeignKey
@@ -88,7 +88,7 @@ class StaffExposureRecord(Base):
     # 연결된 사고 보고
     incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<StaffExposure {self.id} - {self.exposure_type.value}>"
@@ -128,7 +128,7 @@ class LabTATRecord(Base):
     # 기간 (집계용)
     test_date = Column(Date, nullable=False, index=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<LabTAT {self.test_type.value} - {self.tat_minutes}min>"
@@ -158,7 +158,7 @@ class StaffSafetyMonthlyStats(Base):
     # 예방적 처치
     pep_given_count = Column(Integer, default=0)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<StaffSafetyStats {self.year}-{self.month}>"
@@ -192,7 +192,7 @@ class LabTATMonthlyStats(Base):
     target_tat = Column(Integer, nullable=True)
     target_achievement_rate = Column(Float, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<LabTATStats {self.year}-{self.month} - {self.test_type.value}>"

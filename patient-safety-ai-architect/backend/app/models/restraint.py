@@ -9,7 +9,7 @@ Physical Restraint (신체보호대) Management Models
 """
 
 import enum
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional
 
 from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, Float, Date, Boolean, ForeignKey
@@ -92,8 +92,8 @@ class RestraintRecord(Base):
     appropriateness_reviewed = Column(Boolean, default=False)
     is_appropriate = Column(Boolean, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<RestraintRecord {self.id} - {self.restraint_type.value}>"
@@ -118,7 +118,7 @@ class RestraintAdverseEventRecord(Base):
     # 조치
     action_taken = Column(Text, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<RestraintAdverseEvent {self.id} - {self.event_type.value}>"
@@ -159,7 +159,7 @@ class RestraintMonthlyStats(Base):
     # 적절성
     appropriate_use_rate = Column(Float, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<RestraintMonthlyStats {self.year}-{self.month}>"

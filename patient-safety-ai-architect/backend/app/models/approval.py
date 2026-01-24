@@ -8,7 +8,7 @@ Approval Model
 """
 
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, ForeignKey
 from sqlalchemy.orm import relationship
@@ -50,7 +50,7 @@ class Approval(Base):
     rejection_reason = Column(Text, nullable=True)
 
     # Timestamps
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     decided_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships

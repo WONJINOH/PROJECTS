@@ -9,7 +9,7 @@ Pressure Ulcer (욕창) Management Models
 """
 
 import enum
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional
 
 from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, Float, Date, Boolean, ForeignKey
@@ -73,8 +73,8 @@ class PressureUlcerRecord(Base):
     healed_date = Column(Date, nullable=True)
     is_active = Column(Boolean, default=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<PressureUlcer {self.ulcer_id} - {self.location.value}>"
@@ -116,7 +116,7 @@ class PressureUlcerAssessment(Base):
     assessed_by = Column(Integer, nullable=True)
     note = Column(Text, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<PUAssessment {self.assessment_date} - Grade {self.grade.value}>"
@@ -155,7 +155,7 @@ class PressureUlcerMonthlyStats(Base):
     improvement_rate = Column(Float, nullable=True)
     worsening_rate = Column(Float, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<PUMonthlyStats {self.year}-{self.month}>"

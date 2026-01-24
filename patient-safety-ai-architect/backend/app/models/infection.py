@@ -9,7 +9,7 @@ Infection Control (감염 관리) Models
 """
 
 import enum
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional
 
 from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, Float, Date, Boolean, ForeignKey
@@ -74,7 +74,7 @@ class InfectionRecord(Base):
     # 연결된 사고 보고
     incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<InfectionRecord {self.id} - {self.infection_type.value}>"
@@ -105,7 +105,7 @@ class HandHygieneObservation(Base):
     # 관찰자
     observer_id = Column(Integer, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<HandHygieneObs {self.observation_date} - {'Y' if self.performed else 'N'}>"
@@ -149,7 +149,7 @@ class InfectionMonthlyStats(Base):
     hand_hygiene_performed = Column(Integer, default=0)
     hand_hygiene_rate = Column(Float, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<InfectionMonthlyStats {self.year}-{self.month}>"

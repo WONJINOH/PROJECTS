@@ -8,6 +8,13 @@ Phase 1 Features:
 - Approvals workflow
 - Actions tracking
 - Attachments (local storage)
+
+Phase 1.5 Features (Risk Management):
+- Risk Register (P×S Matrix)
+- Risk Assessment history
+- PSR → Risk auto-escalation
+- Just Culture classification
+- Incident Timeline feedback
 """
 
 from contextlib import asynccontextmanager
@@ -25,6 +32,12 @@ from app.api import (
     actions,
     fall_details,
     medication_details,
+    transfusion_details,
+    thermal_injury_details,
+    procedure_details,
+    environment_details,
+    security_details,
+    risks,
 )
 from app.security.audit import AuditMiddleware
 
@@ -70,6 +83,12 @@ app.include_router(indicators.router, prefix="/api/indicators", tags=["Indicator
 app.include_router(actions.router, prefix="/api/actions", tags=["Actions"])
 app.include_router(fall_details.router, prefix="/api/fall-details", tags=["Fall Details"])
 app.include_router(medication_details.router, prefix="/api/medication-details", tags=["Medication Details"])
+app.include_router(transfusion_details.router, prefix="/api/transfusion-details", tags=["Transfusion Details"])
+app.include_router(thermal_injury_details.router, prefix="/api/thermal-injury-details", tags=["Thermal Injury Details"])
+app.include_router(procedure_details.router, prefix="/api/procedure-details", tags=["Procedure Details"])
+app.include_router(environment_details.router, prefix="/api/environment-details", tags=["Environment Details"])
+app.include_router(security_details.router, prefix="/api/security-details", tags=["Security Details"])
+app.include_router(risks.router, prefix="/api/risks", tags=["Risk Management"])
 
 
 @app.get("/api/health")

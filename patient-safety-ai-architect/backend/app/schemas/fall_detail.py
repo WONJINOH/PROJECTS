@@ -7,7 +7,7 @@ Schemas for fall incident details with validation rules.
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.models.fall_detail import (
     FallInjuryLevel,
@@ -105,5 +105,4 @@ class FallDetailResponse(FallDetailBase):
     incident_id: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

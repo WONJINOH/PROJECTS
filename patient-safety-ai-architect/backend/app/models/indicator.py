@@ -16,7 +16,7 @@ Indicator Configuration Model
 """
 
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, Boolean, Float, ForeignKey
@@ -109,8 +109,8 @@ class IndicatorConfig(Base):
     status = Column(Enum(IndicatorStatus), default=IndicatorStatus.ACTIVE)
 
     # 메타데이터
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     created_by_id = Column(Integer, nullable=True)
 
     # Relationships
@@ -141,8 +141,8 @@ class IndicatorValue(Base):
 
     # 메타데이터
     notes = Column(Text, nullable=True)  # 비고
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     created_by_id = Column(Integer, nullable=True)
 
     # 검증

@@ -6,10 +6,10 @@ Implements RBAC and audit logging per PIPA requirements.
 """
 
 from datetime import datetime, timezone
-from typing import Annotated, Optional
+from typing import Annotated, Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, func, and_, or_
+from sqlalchemy import select, func, and_, or_, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,11 +17,15 @@ from app.database import get_db
 from app.models.incident import Incident, IncidentCategory, IncidentGrade
 from app.models.user import User, Role
 from app.models.audit import AuditLog, AuditEventType
+from app.models.approval import Approval
+from app.models.action import Action, ActionStatus
 from app.schemas.incident import (
     IncidentCreate,
     IncidentResponse,
     IncidentUpdate,
     IncidentListResponse,
+    TimelineEvent,
+    IncidentTimelineResponse,
 )
 from app.security.dependencies import get_current_user, get_current_active_user, require_permission
 from app.security.rbac import Permission
@@ -463,4 +467,184 @@ async def delete_incident(
         incident_id=incident_id,
         result="success",
         details={"category": incident.category.value, "grade": incident.grade.value},
+    )
+
+
+@router.get(
+    "/{incident_id}/timeline",
+    response_model=IncidentTimelineResponse,
+    summary="Get incident progress timeline",
+)
+async def get_incident_timeline(
+    incident_id: int,
+    current_user: Annotated[User, Depends(get_current_active_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> IncidentTimelineResponse:
+    """
+    Get the progress timeline for an incident (for reporter feedback).
+
+    Returns a chronological list of events:
+    - submitted: Initial report submission
+    - under_review: QPS staff reviewing
+    - action_created: CAPA actions assigned
+    - approved: Approval decisions
+    - closed: Final closure
+
+    This allows reporters to see the progress of their submitted incidents.
+    """
+    # Get incident
+    result = await db.execute(
+        select(Incident).where(
+            and_(Incident.id == incident_id, Incident.is_deleted == False)
+        )
+    )
+    incident = result.scalar_one_or_none()
+
+    if incident is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident not found",
+        )
+
+    # Check access
+    if not can_access_incident(current_user, incident):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this incident",
+        )
+
+    events: List[TimelineEvent] = []
+
+    # 1. Add initial creation event
+    events.append(TimelineEvent(
+        event_type="submitted",
+        status="submitted",
+        occurred_at=incident.reported_at or incident.created_at,
+        actor=incident.reporter_name or "익명",
+        detail=f"{incident.category.value} 사건 보고",
+        icon="document",
+    ))
+
+    # 2. Get approvals for this incident
+    approvals_result = await db.execute(
+        select(Approval)
+        .where(Approval.incident_id == incident_id)
+        .order_by(Approval.created_at)
+    )
+    approvals = approvals_result.scalars().all()
+
+    for approval in approvals:
+        # Get approver info - anonymized for reporters
+        actor_display = "QPS 담당자"
+        if hasattr(approval, 'approver') and approval.approver:
+            if current_user.role in [Role.QPS_STAFF, Role.VICE_CHAIR, Role.DIRECTOR, Role.MASTER]:
+                actor_display = approval.approver.username
+            else:
+                # For reporters, show role only
+                role_map = {
+                    "qps_staff": "QPS 담당자",
+                    "vice_chair": "부위원장",
+                    "director": "원장",
+                }
+                actor_display = role_map.get(approval.approval_level, "담당자")
+
+        if approval.status == "approved":
+            events.append(TimelineEvent(
+                event_type="approved",
+                status=f"{approval.approval_level}_approved",
+                occurred_at=approval.approved_at or approval.created_at,
+                actor=actor_display,
+                detail=f"{approval.approval_level} 승인 완료",
+                icon="check-circle",
+            ))
+        elif approval.status == "rejected":
+            events.append(TimelineEvent(
+                event_type="rejected",
+                status=f"{approval.approval_level}_rejected",
+                occurred_at=approval.approved_at or approval.created_at,
+                actor=actor_display,
+                detail=approval.comment or "반려됨",
+                icon="x-circle",
+            ))
+
+    # 3. Get actions for this incident
+    actions_result = await db.execute(
+        select(Action)
+        .where(and_(Action.incident_id == incident_id, Action.is_deleted == False))
+        .order_by(Action.created_at)
+    )
+    actions = actions_result.scalars().all()
+
+    for action in actions:
+        # Action created
+        events.append(TimelineEvent(
+            event_type="action_created",
+            status="action_assigned",
+            occurred_at=action.created_at,
+            actor=action.owner,
+            detail=f"개선조치 배정: {action.title[:50]}...",
+            icon="clipboard",
+        ))
+
+        # Action completed
+        if action.status == ActionStatus.COMPLETED and action.completed_at:
+            events.append(TimelineEvent(
+                event_type="action_completed",
+                status="action_completed",
+                occurred_at=action.completed_at,
+                actor=action.owner,
+                detail=f"개선조치 완료: {action.title[:50]}...",
+                icon="check",
+            ))
+
+        # Action verified
+        if action.status == ActionStatus.VERIFIED and action.verified_at:
+            events.append(TimelineEvent(
+                event_type="action_verified",
+                status="action_verified",
+                occurred_at=action.verified_at,
+                actor="검증자",
+                detail=f"개선조치 검증 완료: {action.title[:50]}...",
+                icon="shield-check",
+            ))
+
+    # 4. Check if incident is closed
+    if incident.status == "closed":
+        events.append(TimelineEvent(
+            event_type="closed",
+            status="closed",
+            occurred_at=incident.updated_at,
+            detail="사건 종결",
+            icon="lock",
+        ))
+
+    # Sort by time (handle both naive and timezone-aware datetimes)
+    def safe_datetime_key(event):
+        dt = event.occurred_at
+        # Convert to naive UTC for consistent comparison
+        if dt.tzinfo is not None:
+            return dt.replace(tzinfo=None)
+        return dt
+
+    events.sort(key=safe_datetime_key)
+
+    # Determine next expected action
+    next_expected = None
+    if incident.status == "draft":
+        next_expected = "제출 대기 중"
+    elif incident.status == "submitted":
+        next_expected = "QPS 검토 대기 중"
+    elif incident.status == "approved":
+        # Check if all actions are verified
+        pending_actions = [a for a in actions if a.status not in [ActionStatus.VERIFIED, ActionStatus.CANCELLED]]
+        if pending_actions:
+            next_expected = f"개선조치 완료 대기 중 ({len(pending_actions)}건)"
+        else:
+            next_expected = "종결 대기 중"
+
+    return IncidentTimelineResponse(
+        incident_id=incident_id,
+        current_status=incident.status,
+        events=events,
+        next_expected_action=next_expected,
     )

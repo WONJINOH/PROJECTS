@@ -9,7 +9,7 @@ PSR 양식 기반 필드 (대시보드용)
 """
 
 import enum
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional
 
 from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, Float, Date, Boolean, ForeignKey, JSON
@@ -199,7 +199,7 @@ class FallDetail(Base):
     is_recurrence = Column(Boolean, default=False)
     previous_fall_count = Column(Integer, default=0)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<FallDetail {self.id} - {self.injury_level.value}>"
@@ -236,7 +236,7 @@ class FallMonthlyStats(Base):
     fall_rate = Column(Float, nullable=True)
     fall_with_injury_rate = Column(Float, nullable=True)  # 손상 동반 낙상률
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<FallMonthlyStats {self.year}-{self.month}>"

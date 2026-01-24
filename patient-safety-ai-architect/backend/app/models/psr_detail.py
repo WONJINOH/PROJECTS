@@ -12,7 +12,7 @@ PSR (Patient Safety Report) Detail Models
 """
 
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, ForeignKey, Time
@@ -118,7 +118,7 @@ class PSRDetail(Base):
     discovery_method = Column(String(100), nullable=True)  # 발견 방법
 
     # 메타데이터
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<PSRDetail {self.id} - {self.incident_type.value}>"
@@ -147,7 +147,7 @@ class HeatmapData(Base):
     # 부서별 (선택)
     department = Column(String(100), nullable=True, index=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<HeatmapData {self.location.value}@{self.hour}h: {self.incident_count}>"

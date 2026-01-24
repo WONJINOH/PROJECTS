@@ -7,7 +7,7 @@ PIPA Art. 29 compliant audit logging with:
 - Sensitive data masking
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Any
 
 from fastapi import Request
@@ -99,7 +99,7 @@ class AuditService:
         # Calculate entry hash
         entry_hash = AuditLog.calculate_hash(
             event_type=event_type.value,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             user_id=user_id,
             resource_id=resource_id,
             previous_hash=previous_hash,
@@ -107,7 +107,7 @@ class AuditService:
 
         entry = AuditLog(
             event_type=event_type,
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             user_id=user_id,
             user_role=user_role,
             username=username,
@@ -138,7 +138,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
         # Add request start time for duration tracking
-        request.state.start_time = datetime.utcnow()
+        request.state.start_time = datetime.now(timezone.utc)
 
         response = await call_next(request)
 

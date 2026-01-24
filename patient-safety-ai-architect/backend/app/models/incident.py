@@ -8,7 +8,7 @@ Patient safety incident with required fields per CLAUDE.md:
 """
 
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, ForeignKey, Boolean, JSON
@@ -61,6 +61,48 @@ class PatientPhysicalOutcome(str, enum.Enum):
     DEATH = "death"                      # 사망
 
 
+class ImprovementType(str, enum.Enum):
+    """개선활동내역 (PSR 공통)"""
+    POLICY_UPDATE = "policy_update"                # 업무지침수정
+    PROCESS_IMPROVEMENT = "process_improvement"    # 업무과정개선
+    TRAINING = "training"                          # 정기교육 및 재교육
+    FACILITY_IMPROVEMENT = "facility_improvement"  # 시설보완
+
+
+class PolicyFactorType(str, enum.Enum):
+    """인적요인 - 지침/규정/절차 관련"""
+    NO_POLICY = "no_policy"                        # 지침/규정/절차 없음
+    NOT_TRAINED = "not_trained"                    # 있으나 교육 안받음
+    TRAINED_NOT_FOLLOWED = "trained_not_followed"  # 교육 받았으나 미이행
+    UNAVOIDABLE = "unavoidable"                    # 불가항력적
+    OTHER = "other"
+
+
+class ManagementFactorType(str, enum.Enum):
+    """관리 관련 요인"""
+    FACILITY = "facility"                # 시설
+    EQUIPMENT = "equipment"              # 장비/비품
+    MEDICAL_DEVICE = "medical_device"    # 의료기기
+
+
+class BehaviorType(str, enum.Enum):
+    """
+    Just Culture 행동 유형 분류
+
+    행동 유형에 따른 시스템 대응:
+    - HUMAN_ERROR: 위로 + 시스템 개선 (징계 없음)
+    - AT_RISK: 코칭 + 인센티브 재설계 (교육)
+    - RECKLESS: 시스템 개선 + 징계 검토
+    - SYSTEM_INDUCED: 시스템 개선 (개인 책임 없음)
+    """
+    HUMAN_ERROR = "human_error"          # 실수 (의도 없는 오류)
+    AT_RISK = "at_risk"                  # 위험 감수 (규칙 위반이나 이유 있음)
+    RECKLESS = "reckless"                # 무모한 행동 (의도적 무시)
+    SYSTEM_INDUCED = "system_induced"    # 시스템이 유발한 오류
+    NOT_APPLICABLE = "not_applicable"    # 해당 없음 (환경/장비 요인 등)
+    PENDING_REVIEW = "pending_review"    # 검토 대기
+
+
 class IncidentCategory(str, enum.Enum):
     """Incident categories."""
 
@@ -71,6 +113,15 @@ class IncidentCategory(str, enum.Enum):
     MEDICAL_DEVICE = "medical_device"      # 의료기기
     SURGERY = "surgery"                    # 수술
     TRANSFUSION = "transfusion"            # 수혈
+    THERMAL_INJURY = "thermal_injury"      # 열냉사고
+    PROCEDURE = "procedure"                # 검사/시술/치료
+    ENVIRONMENT = "environment"            # 환경
+    SECURITY = "security"                  # 보안
+    ELOPEMENT = "elopement"                # 무단이탈/탈원
+    VIOLENCE = "violence"                  # 폭력
+    FIRE = "fire"                          # 방화
+    SUICIDE = "suicide"                    # 자살
+    SELF_HARM = "self_harm"                # 자해
     OTHER = "other"                        # 기타
 
 
@@ -127,6 +178,24 @@ class Incident(Base):
     patient_physical_outcome = Column(Enum(PatientPhysicalOutcome), nullable=True, index=True)
     patient_physical_outcome_detail = Column(Text, nullable=True)
 
+    # 개선활동내역 (복수 선택) - JSON 배열로 저장
+    # 예: ["policy_update", "training"]
+    improvement_types = Column(JSON, nullable=True)
+
+    # 인적요인 - 지침/규정/절차 관련
+    policy_factor = Column(Enum(PolicyFactorType), nullable=True)
+    policy_factor_detail = Column(Text, nullable=True)
+
+    # 관리 관련 요인 (복수 선택) - JSON 배열로 저장
+    # 예: ["facility", "equipment"]
+    management_factors = Column(JSON, nullable=True)
+    management_factors_detail = Column(Text, nullable=True)
+
+    # === Just Culture 분류 ===
+    # 행동 유형 분류 (QPS 담당자가 분석 후 입력)
+    behavior_type = Column(Enum(BehaviorType), nullable=True, index=True)
+    behavior_type_rationale = Column(Text, nullable=True)  # 분류 근거
+
     # === Sensitive Patient Info (Encrypted) ===
     # Note: In production, use proper key management
     patient_info = Column(
@@ -139,8 +208,8 @@ class Incident(Base):
     department = Column(String(100), nullable=True)
     status = Column(String(50), default="draft", index=True)  # draft, submitted, approved, closed
     is_deleted = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Relationships
     reporter = relationship("User", back_populates="incidents")

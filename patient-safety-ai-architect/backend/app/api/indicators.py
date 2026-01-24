@@ -6,7 +6,7 @@ Implements RBAC for indicator access control.
 """
 
 from typing import Annotated, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, func, or_
@@ -469,7 +469,7 @@ async def verify_indicator_value(
     # Verify
     value.is_verified = True
     value.verified_by_id = current_user.id
-    value.verified_at = datetime.utcnow()
+    value.verified_at = datetime.now(timezone.utc)
 
     await db.flush()
     await db.refresh(value)

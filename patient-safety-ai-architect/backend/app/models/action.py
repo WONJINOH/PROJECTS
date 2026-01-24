@@ -10,7 +10,7 @@ CAPA (Corrective and Preventive Action) tracking with:
 """
 
 import enum
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional
 
 from sqlalchemy import Column, Integer, String, DateTime, Date, Enum, Text, ForeignKey, Boolean
@@ -46,7 +46,8 @@ class Action(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     # References
-    incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=False, index=True)
+    incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=True, index=True)
+    risk_id = Column(Integer, ForeignKey("risks.id"), nullable=True, index=True)  # 위험 연결
 
     # === Core Fields ===
     title = Column(String(200), nullable=False)
@@ -87,12 +88,13 @@ class Action(Base):
 
     # Metadata
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     is_deleted = Column(Boolean, default=False)
 
     # Relationships
     incident = relationship("Incident", back_populates="actions")
+    risk = relationship("Risk", backref="actions")  # 위험 연결
     evidence_attachment = relationship(
         "Attachment",
         foreign_keys=[evidence_attachment_id]

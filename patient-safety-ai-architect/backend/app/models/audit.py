@@ -17,7 +17,7 @@ Features:
 
 import enum
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import Column, Integer, String, DateTime, Enum, JSON, Text
@@ -51,6 +51,13 @@ class AuditEventType(str, enum.Enum):
     # Permission operations
     PERMISSION_CHANGE = "permission_change"
 
+    # Risk operations
+    RISK_CREATE = "risk_create"
+    RISK_UPDATE = "risk_update"
+    RISK_VIEW = "risk_view"
+    RISK_ESCALATE = "risk_escalate"
+    RISK_ASSESSMENT = "risk_assessment"
+
 
 class AuditLog(Base):
     """Audit log entry (append-only)."""
@@ -61,7 +68,7 @@ class AuditLog(Base):
 
     # Event details
     event_type = Column(Enum(AuditEventType), nullable=False, index=True)
-    timestamp = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False, index=True)
+    timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
     # Actor
     user_id = Column(Integer, nullable=True, index=True)  # nullable for failed logins

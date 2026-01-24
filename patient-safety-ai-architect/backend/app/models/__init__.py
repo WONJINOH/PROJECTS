@@ -87,6 +87,64 @@ from app.models.staff_safety import (
     LabTestType,
 )
 
+# Transfusion (수혈)
+from app.models.transfusion_detail import (
+    TransfusionDetail,
+    BloodVerificationMethod,
+    TransfusionErrorType,
+    TransfusionReactionType,
+)
+
+# Thermal Injury (열냉사고)
+from app.models.thermal_injury_detail import (
+    ThermalInjuryDetail,
+    ThermalInjurySource,
+    ThermalInjurySeverity,
+    ThermalInjuryBodyPart,
+)
+
+# Procedure (검사/시술/치료)
+from app.models.procedure_detail import (
+    ProcedureDetail,
+    ProcedureType,
+    ProcedureErrorType,
+    ProcedureOutcome,
+)
+
+# Environment (환경)
+from app.models.environment_detail import (
+    EnvironmentDetail,
+    EnvironmentType,
+    EnvironmentSeverity,
+)
+
+# Security (보안)
+from app.models.security_detail import (
+    SecurityDetail,
+    SecurityType,
+    SecuritySeverity,
+    InvolvedPartyType,
+)
+
+# Incident PSR Enums
+from app.models.incident import (
+    ImprovementType,
+    PolicyFactorType,
+    ManagementFactorType,
+    BehaviorType,
+)
+
+# Risk Management
+from app.models.risk import (
+    Risk,
+    RiskAssessment,
+    RiskSourceType,
+    RiskCategory,
+    RiskLevel,
+    RiskStatus,
+    RiskAssessmentType,
+)
+
 __all__ = [
     # Core
     "User",
@@ -160,4 +218,41 @@ __all__ = [
     "ExposureType",
     "ExposureSource",
     "LabTestType",
+    # Transfusion
+    "TransfusionDetail",
+    "BloodVerificationMethod",
+    "TransfusionErrorType",
+    "TransfusionReactionType",
+    # Thermal Injury
+    "ThermalInjuryDetail",
+    "ThermalInjurySource",
+    "ThermalInjurySeverity",
+    "ThermalInjuryBodyPart",
+    # Procedure
+    "ProcedureDetail",
+    "ProcedureType",
+    "ProcedureErrorType",
+    "ProcedureOutcome",
+    # Environment
+    "EnvironmentDetail",
+    "EnvironmentType",
+    "EnvironmentSeverity",
+    # Security
+    "SecurityDetail",
+    "SecurityType",
+    "SecuritySeverity",
+    "InvolvedPartyType",
+    # Incident PSR Enums
+    "ImprovementType",
+    "PolicyFactorType",
+    "ManagementFactorType",
+    "BehaviorType",
+    # Risk Management
+    "Risk",
+    "RiskAssessment",
+    "RiskSourceType",
+    "RiskCategory",
+    "RiskLevel",
+    "RiskStatus",
+    "RiskAssessmentType",
 ]

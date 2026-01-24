@@ -12,7 +12,7 @@ PSR 양식 기반 필드 (대시보드용)
 """
 
 import enum
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Optional
 
 from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, Float, Date, Boolean, ForeignKey, JSON
@@ -154,7 +154,7 @@ class MedicationErrorDetail(Base):
     # 원인 분석
     contributing_factors = Column(Text, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<MedicationError {self.id} - {self.error_type.value}>"
@@ -198,7 +198,7 @@ class MedicationMonthlyStats(Base):
     # 바코드 스캔 (추후)
     barcode_scan_rate = Column(Float, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     def __repr__(self) -> str:
         return f"<MedicationMonthlyStats {self.year}-{self.month}>"

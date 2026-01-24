@@ -5,7 +5,7 @@ Files stored locally: uploads/incidents/{incident_id}/
 DB stores: file:// style URI
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
@@ -36,7 +36,7 @@ class Attachment(Base):
 
     # Metadata
     is_deleted = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships

@@ -10,7 +10,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional, List
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.indicator import (
     IndicatorCategory,
@@ -141,8 +141,7 @@ class IndicatorConfigResponse(BaseModel):
     updated_at: datetime
     created_by_id: Optional[int] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class IndicatorConfigListResponse(BaseModel):
@@ -196,8 +195,7 @@ class IndicatorValueResponse(BaseModel):
     updated_at: datetime
     created_by_id: Optional[int] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class IndicatorValueListResponse(BaseModel):

@@ -5,7 +5,7 @@ Approval Schemas (Pydantic)
 from datetime import datetime
 from typing import Optional, List
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.approval import ApprovalLevel, ApprovalStatus
 
@@ -28,8 +28,7 @@ class ApprovalRecord(BaseModel):
     rejection_reason: Optional[str]
     decided_at: Optional[datetime]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ApprovalResponse(BaseModel):
@@ -41,5 +40,4 @@ class ApprovalResponse(BaseModel):
     is_fully_approved: bool
     history: List[ApprovalRecord]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

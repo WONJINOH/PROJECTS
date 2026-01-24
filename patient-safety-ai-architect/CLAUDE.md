@@ -1,7 +1,18 @@
-## Project scope (Phase 1)
+## Project scope (Phase 1 + 1.5)
 - Internal-only QI system for a Korean long-term care hospital.
 - No EMR integration.
-- Phase 1 features: Incident intake (Common page) + Fall details + Medication details + Approvals + Actions + Attachments (local storage).
+
+### Phase 1 features
+- Incident intake (Common page) + Fall details + Medication details
+- Approvals workflow + Actions tracking + Attachments (local storage)
+- PSR Form Coverage: Transfusion, Thermal Injury, Procedure, Environment, Security details
+
+### Phase 1.5 features (Risk Management)
+- **Risk Register**: 5×5 P×S Matrix with auto-calculated risk levels
+- **Risk Assessment History**: Track changes in probability/severity over time
+- **PSR → Risk Auto-Escalation**: Automatic risk creation for SEVERE/DEATH grade incidents
+- **Just Culture Classification**: BehaviorType field for incident analysis
+- **Incident Timeline API**: Reporter feedback visualization
 
 ## Hard rules
 - No real PII in code, tests, examples, or logs. Use pseudonyms only.
@@ -112,3 +123,51 @@ Located in `.claude/hooks/`:
 - `rbac-check.md` - Verifies API authorization
 - `migration-reminder.md` - Reminds Alembic migrations
 - `test-reminder.md` - Prompts test updates
+
+---
+
+## Phase 2+ Roadmap (Future Enhancements)
+
+### Phase 2: Advanced Safety Analysis
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| **Safety-II / Learning from Excellence** | Capture and analyze positive safety events (what went right) | High |
+| **Human Factors Analysis** | HFACS-based contributing factor taxonomy | High |
+| **Enhanced Just Culture** | Full Just Culture algorithm with decision tree | Medium |
+| **RCA Integration** | Fishbone diagram, 5-Whys, root cause analysis tools | High |
+
+### Phase 3: Predictive & Analytics
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| **Trend Analysis** | Statistical analysis of incident patterns | High |
+| **Predictive Risk Scoring** | ML-based risk prediction from incident data | Medium |
+| **Benchmarking** | Compare with national/regional benchmarks | Low |
+| **Dashboard Enhancements** | Interactive risk heatmaps, drill-down reports | Medium |
+
+### Phase 4: Engagement & Culture
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| **Patient/Family Engagement** | Patient involvement in safety improvement | Medium |
+| **Second Victim Support** | Staff support program for those involved in incidents | High |
+| **Anonymous Reporting** | True anonymous reporting with tracking | Medium |
+| **Safety Culture Survey** | Periodic safety culture assessment | Low |
+
+### Phase 5: Integration & Advanced
+| Feature | Description | Priority |
+|---------|-------------|----------|
+| **EMR Integration** | Optional connection to hospital EMR | Low |
+| **External Reporting** | KOPS, KOIHA automated submission | Medium |
+| **Mobile App** | React Native mobile reporting app | Low |
+| **AI-Assisted Analysis** | NLP for incident description analysis | Low |
+
+### Implementation Notes
+- Each phase should maintain backward compatibility
+- All new features must pass the Release Gate
+- Prioritize features based on 4th cycle accreditation requirements
+- Consider hospital-specific customization needs
+
+### Key Dependencies
+- Phase 2 requires Phase 1.5 Risk Management foundation
+- Phase 3 analytics requires sufficient historical data
+- Phase 4 engagement features may require policy changes
+- Phase 5 integration requires IT infrastructure updates
