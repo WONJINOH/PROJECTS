@@ -40,14 +40,15 @@ opentelemetry-instrumentation-fastapi==0.43b0
 
 # === Testing ===
 pytest==8.0.0
-pytest-asyncio==0.23.4
+pytest-asyncio==0.23.5
 pytest-cov==4.1.0
 httpx==0.26.0                     # Async test client
 
 # === Security Scanning (Dev) ===
 bandit==1.7.7                     # SAST
-pip-audit==2.7.0                  # SCA
-safety==3.0.1                     # Dependency check
+# pip-audit and safety are run separately in CI to avoid Pydantic conflicts
+# pip-audit==2.7.0                # SCA
+# safety==3.0.1                   # Dependency check
 
 # === Code Quality ===
 ruff==0.2.1                       # Linter + formatter

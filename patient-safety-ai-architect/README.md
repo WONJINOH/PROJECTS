@@ -137,6 +137,7 @@ patient-safety-ai-architect/
 - [API_SPECIFICATION.md](docs/API_SPECIFICATION.md) - API 명세
 - [SECURITY_DESIGN.md](docs/SECURITY_DESIGN.md) - 보안 설계
 - [EXPANSION_ROADMAP.md](docs/EXPANSION_ROADMAP.md) - 확장 로드맵
+- [DATABASE_SETUP.md](docs/DATABASE_SETUP.md) - 데이터베이스 관리 도구 설정
 
 ## 🤝 기여
 

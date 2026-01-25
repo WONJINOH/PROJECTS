@@ -8,9 +8,10 @@ export const api = axios.create({
   },
 })
 
-// Request interceptor - add auth token
+// Request interceptor - add auth token (no trailing slashes - they cause redirect issues)
 api.interceptors.request.use(
   (config) => {
+    // Note: Don't add trailing slashes - they cause 307 redirects that lose auth headers
     const authStorage = localStorage.getItem('auth-storage')
     if (authStorage) {
       try {
@@ -41,18 +42,19 @@ api.interceptors.response.use(
 )
 
 // API functions
+// Note: Trailing slashes are required to avoid 307 redirects that lose auth headers
 export const incidentApi = {
   list: (params?: { skip?: number; limit?: number }) =>
-    api.get('/api/incidents', { params }),
+    api.get('/api/incidents/', { params }),
 
   get: (id: number) =>
-    api.get(`/api/incidents/${id}`),
+    api.get(`/api/incidents/${id}/`),
 
   create: (data: CreateIncidentData) =>
-    api.post('/api/incidents', data),
+    api.post('/api/incidents/', data),
 
   update: (id: number, data: Partial<CreateIncidentData>) =>
-    api.put(`/api/incidents/${id}`, data),
+    api.put(`/api/incidents/${id}/`, data),
 }
 
 export const attachmentApi = {
@@ -108,9 +110,15 @@ import type {
   CreateFallDetailData,
   CreateMedicationDetailData,
   CreateActionData,
+  CreateRiskData,
+  UpdateRiskData,
+  CreateRiskAssessmentData,
   IndicatorCategory,
   IndicatorStatusType,
   ActionStatus,
+  RiskStatus,
+  RiskLevel,
+  RiskCategory,
 } from '@/types'
 
 // Indicator API
@@ -219,4 +227,66 @@ export const actionApi = {
 
   listOverdue: () =>
     api.get('/api/actions/overdue'),
+}
+
+// Risk API
+export const riskApi = {
+  list: (params?: {
+    status?: RiskStatus
+    level?: RiskLevel
+    category?: RiskCategory
+    skip?: number
+    limit?: number
+  }) => api.get('/api/risks', { params }),
+
+  get: (id: number) => api.get(`/api/risks/${id}`),
+
+  create: (data: CreateRiskData) => api.post('/api/risks', data),
+
+  update: (id: number, data: UpdateRiskData) => api.put(`/api/risks/${id}`, data),
+
+  // Risk Matrix
+  getMatrix: (params?: { status?: RiskStatus }) =>
+    api.get('/api/risks/matrix', { params }),
+
+  // Risk Assessments
+  listAssessments: (riskId: number) =>
+    api.get(`/api/risks/${riskId}/assessments`),
+
+  createAssessment: (riskId: number, data: CreateRiskAssessmentData) =>
+    api.post(`/api/risks/${riskId}/assessments`, data),
+
+  // Escalation
+  getEscalationCandidates: (days?: number) =>
+    api.get('/api/risks/escalation/candidates', { params: { days } }),
+
+  runAutoEscalation: (days?: number) =>
+    api.post('/api/risks/escalation/run', null, { params: { days } }),
+
+  escalateIncident: (incidentId: number, params?: {
+    probability?: number
+    severity?: number
+    reason?: string
+  }) => api.post(`/api/risks/escalation/${incidentId}`, null, { params }),
+}
+
+// Dashboard API
+export const dashboardApi = {
+  getSummary: (params?: { year?: number; month?: number; department?: string }) =>
+    api.get('/api/dashboard/summary', { params }),
+
+  getPSR: (params?: { year?: number; month?: number; department?: string }) =>
+    api.get('/api/dashboard/psr', { params }),
+
+  getRecentIncidents: (params?: { limit?: number }) =>
+    api.get('/api/dashboard/recent-incidents', { params }),
+
+  getFall: (params?: { year?: number; month?: number }) =>
+    api.get('/api/dashboard/fall', { params }),
+
+  getMedication: (params?: { year?: number; month?: number }) =>
+    api.get('/api/dashboard/medication', { params }),
+
+  getPressureUlcer: (params?: { year?: number; month?: number }) =>
+    api.get('/api/dashboard/pressure-ulcer', { params }),
 }

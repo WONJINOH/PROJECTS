@@ -31,10 +31,12 @@ export const useAuth = create<AuthState>()(
 
       login: async (username: string, password: string) => {
         try {
-          const response = await api.post('/api/auth/login', {
-            username,
-            password,
-          }, {
+          // Use URLSearchParams for form-urlencoded data
+          const formData = new URLSearchParams()
+          formData.append('username', username)
+          formData.append('password', password)
+
+          const response = await api.post('/api/auth/login', formData, {
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded',
             },
@@ -48,8 +50,17 @@ export const useAuth = create<AuthState>()(
             headers: { Authorization: `Bearer ${access_token}` },
           })
 
+          // Transform snake_case to camelCase
+          const userData = userResponse.data
           set({
-            user: userResponse.data,
+            user: {
+              id: userData.id,
+              username: userData.username,
+              email: userData.email,
+              fullName: userData.full_name,
+              role: userData.role,
+              department: userData.department,
+            },
             isAuthenticated: true,
             isLoading: false,
           })
@@ -74,7 +85,20 @@ export const useAuth = create<AuthState>()(
           const response = await api.get('/api/auth/me', {
             headers: { Authorization: `Bearer ${token}` },
           })
-          set({ user: response.data, isAuthenticated: true, isLoading: false })
+          // Transform snake_case to camelCase
+          const userData = response.data
+          set({
+            user: {
+              id: userData.id,
+              username: userData.username,
+              email: userData.email,
+              fullName: userData.full_name,
+              role: userData.role,
+              department: userData.department,
+            },
+            isAuthenticated: true,
+            isLoading: false,
+          })
         } catch {
           set({ user: null, token: null, isAuthenticated: false, isLoading: false })
         }

@@ -61,7 +61,9 @@ backend/build/
 
 # === IDE ===
 .idea/
-.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 *.swp
 *.swo
 *~
@@ -117,3 +119,13 @@ temp/
 *.bak
 *.backup
 nul
+
+# === Screenshots (test artifacts) ===
+*.png
+screenshots/
+
+# === Playwright MCP (local config) ===
+.playwright-mcp/
+
+# === Local test scripts (keep in repo but ignore outputs) ===
+# test_*.py and verify_*.py are kept for development

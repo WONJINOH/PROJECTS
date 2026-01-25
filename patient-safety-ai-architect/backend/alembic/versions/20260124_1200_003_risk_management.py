@@ -31,7 +31,7 @@ def upgrade() -> None:
     # RiskSourceType
     risk_source_type_enum = postgresql.ENUM(
         'psr', 'rounding', 'audit', 'complaint', 'indicator', 'external', 'proactive', 'other',
-        name='risksourcetype', create_type=True
+        name='risksourcetype', create_type=False
     )
     risk_source_type_enum.create(op.get_bind(), checkfirst=True)
 
@@ -40,35 +40,35 @@ def upgrade() -> None:
         'fall', 'medication', 'pressure_ulcer', 'infection', 'transfusion',
         'procedure', 'restraint', 'environment', 'security', 'communication',
         'handoff', 'identification', 'other',
-        name='riskcategory', create_type=True
+        name='riskcategory', create_type=False
     )
     risk_category_enum.create(op.get_bind(), checkfirst=True)
 
     # RiskLevel
     risk_level_enum = postgresql.ENUM(
         'low', 'medium', 'high', 'critical',
-        name='risklevel', create_type=True
+        name='risklevel', create_type=False
     )
     risk_level_enum.create(op.get_bind(), checkfirst=True)
 
     # RiskStatus
     risk_status_enum = postgresql.ENUM(
         'open', 'in_progress', 'mitigating', 'monitoring', 'closed',
-        name='riskstatus', create_type=True
+        name='riskstatus', create_type=False
     )
     risk_status_enum.create(op.get_bind(), checkfirst=True)
 
     # RiskAssessmentType
     risk_assessment_type_enum = postgresql.ENUM(
         'initial', 'periodic', 'post_treatment', 'final',
-        name='riskassessmenttype', create_type=True
+        name='riskassessmenttype', create_type=False
     )
     risk_assessment_type_enum.create(op.get_bind(), checkfirst=True)
 
     # BehaviorType (Just Culture)
     behavior_type_enum = postgresql.ENUM(
         'human_error', 'at_risk', 'reckless', 'system_induced', 'not_applicable', 'pending_review',
-        name='behaviortype', create_type=True
+        name='behaviortype', create_type=False
     )
     behavior_type_enum.create(op.get_bind(), checkfirst=True)
 

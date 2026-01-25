@@ -48,28 +48,28 @@ def upgrade() -> None:
     # ImprovementType
     improvement_type_enum = postgresql.ENUM(
         'policy_update', 'process_improvement', 'training', 'facility_improvement',
-        name='improvementtype', create_type=True
+        name='improvementtype', create_type=False
     )
     improvement_type_enum.create(op.get_bind(), checkfirst=True)
 
     # PolicyFactorType
     policy_factor_type_enum = postgresql.ENUM(
         'no_policy', 'not_trained', 'trained_not_followed', 'unavoidable', 'other',
-        name='policyfactortype', create_type=True
+        name='policyfactortype', create_type=False
     )
     policy_factor_type_enum.create(op.get_bind(), checkfirst=True)
 
     # ManagementFactorType
     management_factor_type_enum = postgresql.ENUM(
         'facility', 'equipment', 'medical_device',
-        name='managementfactortype', create_type=True
+        name='managementfactortype', create_type=False
     )
     management_factor_type_enum.create(op.get_bind(), checkfirst=True)
 
     # BloodVerificationMethod
     blood_verification_method_enum = postgresql.ENUM(
         'lab_result', 'patient_statement', 'both',
-        name='bloodverificationmethod', create_type=True
+        name='bloodverificationmethod', create_type=False
     )
     blood_verification_method_enum.create(op.get_bind(), checkfirst=True)
 
@@ -77,7 +77,7 @@ def upgrade() -> None:
     transfusion_error_type_enum = postgresql.ENUM(
         'patient_id_error', 'crossmatch_error', 'blood_type_error', 'product_error',
         'administration_error', 'storage_error', 'documentation_error', 'reaction', 'other',
-        name='transfusionerrortype', create_type=True
+        name='transfusionerrortype', create_type=False
     )
     transfusion_error_type_enum.create(op.get_bind(), checkfirst=True)
 
@@ -85,7 +85,7 @@ def upgrade() -> None:
     transfusion_reaction_type_enum = postgresql.ENUM(
         'none', 'febrile', 'allergic_mild', 'allergic_severe',
         'hemolytic_acute', 'hemolytic_delayed', 'taco', 'trali', 'other',
-        name='transfusionreactiontype', create_type=True
+        name='transfusionreactiontype', create_type=False
     )
     transfusion_reaction_type_enum.create(op.get_bind(), checkfirst=True)
 
@@ -93,7 +93,7 @@ def upgrade() -> None:
     thermal_injury_source_enum = postgresql.ENUM(
         'ice_bag', 'hot_bag', 'hot_water', 'cold_water', 'heating_pad',
         'hot_beverage', 'hot_food', 'steam', 'lamp', 'other',
-        name='thermalinjurysource', create_type=True
+        name='thermalinjurysource', create_type=False
     )
     thermal_injury_source_enum.create(op.get_bind(), checkfirst=True)
 
@@ -101,7 +101,7 @@ def upgrade() -> None:
     thermal_injury_severity_enum = postgresql.ENUM(
         'none', 'grade_1', 'grade_2', 'grade_3',
         'frostbite_1', 'frostbite_2', 'frostbite_3',
-        name='thermalinjuryseverity', create_type=True
+        name='thermalinjuryseverity', create_type=False
     )
     thermal_injury_severity_enum.create(op.get_bind(), checkfirst=True)
 
@@ -109,14 +109,14 @@ def upgrade() -> None:
     thermal_injury_body_part_enum = postgresql.ENUM(
         'head', 'face', 'neck', 'chest', 'back', 'abdomen',
         'upper_arm', 'forearm', 'hand', 'thigh', 'lower_leg', 'foot', 'other',
-        name='thermalinjurybodypart', create_type=True
+        name='thermalinjurybodypart', create_type=False
     )
     thermal_injury_body_part_enum.create(op.get_bind(), checkfirst=True)
 
     # ProcedureType
     procedure_type_enum = postgresql.ENUM(
         'treatment', 'examination', 'procedure', 'restraint_related', 'diet_related', 'other',
-        name='proceduretype', create_type=True
+        name='proceduretype', create_type=False
     )
     procedure_type_enum.create(op.get_bind(), checkfirst=True)
 
@@ -125,14 +125,14 @@ def upgrade() -> None:
         'wrong_patient', 'wrong_site', 'wrong_procedure', 'wrong_time',
         'technique_error', 'equipment_failure', 'consent_issue', 'preparation_error',
         'complication', 'other',
-        name='procedureerrortype', create_type=True
+        name='procedureerrortype', create_type=False
     )
     procedure_error_type_enum.create(op.get_bind(), checkfirst=True)
 
     # ProcedureOutcome
     procedure_outcome_enum = postgresql.ENUM(
         'no_harm', 'minor_harm', 'moderate_harm', 'severe_harm', 'death',
-        name='procedureoutcome', create_type=True
+        name='procedureoutcome', create_type=False
     )
     procedure_outcome_enum.create(op.get_bind(), checkfirst=True)
 
@@ -140,14 +140,14 @@ def upgrade() -> None:
     environment_type_enum = postgresql.ENUM(
         'fire', 'facility', 'waste', 'medical_equipment',
         'water', 'electrical', 'gas', 'hvac', 'other',
-        name='environmenttype', create_type=True
+        name='environmenttype', create_type=False
     )
     environment_type_enum.create(op.get_bind(), checkfirst=True)
 
     # EnvironmentSeverity
     environment_severity_enum = postgresql.ENUM(
         'minor', 'moderate', 'major', 'critical',
-        name='environmentseverity', create_type=True
+        name='environmentseverity', create_type=False
     )
     environment_severity_enum.create(op.get_bind(), checkfirst=True)
 
@@ -155,21 +155,21 @@ def upgrade() -> None:
     security_type_enum = postgresql.ENUM(
         'theft', 'suicide', 'suicide_attempt', 'elopement', 'assault',
         'verbal_abuse', 'sexual_misconduct', 'arson', 'vandalism', 'trespassing', 'other',
-        name='securitytype', create_type=True
+        name='securitytype', create_type=False
     )
     security_type_enum.create(op.get_bind(), checkfirst=True)
 
     # SecuritySeverity
     security_severity_enum = postgresql.ENUM(
         'low', 'moderate', 'high', 'critical',
-        name='securityseverity', create_type=True
+        name='securityseverity', create_type=False
     )
     security_severity_enum.create(op.get_bind(), checkfirst=True)
 
     # InvolvedPartyType
     involved_party_type_enum = postgresql.ENUM(
         'patient', 'visitor', 'staff', 'outsider', 'unknown',
-        name='involvedpartytype', create_type=True
+        name='involvedpartytype', create_type=False
     )
     involved_party_type_enum.create(op.get_bind(), checkfirst=True)
 

@@ -302,6 +302,19 @@ export default function IncidentDetail() {
     return pending || null
   }
 
+  // Check if user can add/edit detail analysis (only QPS_STAFF and MASTER)
+  const canEditDetailAnalysis = (): boolean => {
+    if (!user?.role) return false
+    return ['qps_staff', 'master'].includes(user.role.toLowerCase())
+  }
+
+  // Check if user can view reporter's optional fields (root_cause, improvements)
+  // Only QPS_STAFF, VICE_CHAIR, DIRECTOR, MASTER can see these as reference
+  const canViewReporterOptionalFields = (): boolean => {
+    if (!user?.role) return false
+    return ['qps_staff', 'vice_chair', 'director', 'master'].includes(user.role.toLowerCase())
+  }
+
   const handleApprove = () => {
     approveMutation.mutate(approvalComment || undefined)
   }
@@ -416,14 +429,17 @@ export default function IncidentDetail() {
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                   <Activity className="h-5 w-5 text-orange-600" />
                   낙상 상세 정보
+                  <span className="text-xs font-normal text-green-600 bg-green-50 px-2 py-0.5 rounded">분석 완료</span>
                 </h2>
-                <button
-                  onClick={() => setShowFallDetailForm(true)}
-                  className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1"
-                >
-                  <Edit3 className="h-4 w-4" />
-                  수정
-                </button>
+                {canEditDetailAnalysis() && (
+                  <button
+                    onClick={() => setShowFallDetailForm(true)}
+                    className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    수정
+                  </button>
+                )}
               </div>
               <dl className="grid grid-cols-2 gap-4 text-sm">
                 <div>
@@ -496,19 +512,25 @@ export default function IncidentDetail() {
             </div>
           )}
 
-          {/* Fall Detail Add Button (when no detail exists) */}
+          {/* Fall Detail Add Button (when no detail exists) - Only QPS/MASTER can add */}
           {incident.category === 'fall' && !fallDetail && (
             <div className="card border-l-4 border-l-orange-500 border-dashed">
               <div className="text-center py-4">
                 <Activity className="h-8 w-8 text-orange-400 mx-auto mb-2" />
-                <p className="text-gray-500 mb-3">낙상 상세 정보가 없습니다</p>
-                <button
-                  onClick={() => setShowFallDetailForm(true)}
-                  className="btn-secondary flex items-center gap-2 mx-auto"
-                >
-                  <Plus className="h-4 w-4" />
-                  상세 정보 추가
-                </button>
+                <p className="text-gray-500 mb-3">
+                  {canEditDetailAnalysis()
+                    ? '낙상 상세 정보가 없습니다'
+                    : '낙상 상세 분석 대기 중'}
+                </p>
+                {canEditDetailAnalysis() && (
+                  <button
+                    onClick={() => setShowFallDetailForm(true)}
+                    className="btn-secondary flex items-center gap-2 mx-auto"
+                  >
+                    <Plus className="h-4 w-4" />
+                    상세 정보 추가
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -520,14 +542,17 @@ export default function IncidentDetail() {
                 <h2 className="text-lg font-semibold flex items-center gap-2">
                   <Pill className="h-5 w-5 text-purple-600" />
                   투약 오류 상세 정보
+                  <span className="text-xs font-normal text-green-600 bg-green-50 px-2 py-0.5 rounded">분석 완료</span>
                 </h2>
-                <button
-                  onClick={() => setShowMedicationDetailForm(true)}
-                  className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1"
-                >
-                  <Edit3 className="h-4 w-4" />
-                  수정
-                </button>
+                {canEditDetailAnalysis() && (
+                  <button
+                    onClick={() => setShowMedicationDetailForm(true)}
+                    className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    수정
+                  </button>
+                )}
               </div>
               <dl className="grid grid-cols-2 gap-4 text-sm">
                 <div>
@@ -609,37 +634,49 @@ export default function IncidentDetail() {
             </div>
           )}
 
-          {/* Medication Detail Add Button (when no detail exists) */}
+          {/* Medication Detail Add Button (when no detail exists) - Only QPS/MASTER can add */}
           {incident.category === 'medication' && !medicationDetail && (
             <div className="card border-l-4 border-l-purple-500 border-dashed">
               <div className="text-center py-4">
                 <Pill className="h-8 w-8 text-purple-400 mx-auto mb-2" />
-                <p className="text-gray-500 mb-3">투약 오류 상세 정보가 없습니다</p>
-                <button
-                  onClick={() => setShowMedicationDetailForm(true)}
-                  className="btn-secondary flex items-center gap-2 mx-auto"
-                >
-                  <Plus className="h-4 w-4" />
-                  상세 정보 추가
-                </button>
+                <p className="text-gray-500 mb-3">
+                  {canEditDetailAnalysis()
+                    ? '투약 오류 상세 정보가 없습니다'
+                    : '투약 오류 상세 분석 대기 중'}
+                </p>
+                {canEditDetailAnalysis() && (
+                  <button
+                    onClick={() => setShowMedicationDetailForm(true)}
+                    className="btn-secondary flex items-center gap-2 mx-auto"
+                  >
+                    <Plus className="h-4 w-4" />
+                    상세 정보 추가
+                  </button>
+                )}
               </div>
             </div>
           )}
 
-          {/* Root Cause */}
-          {incident.root_cause && (
-            <div className="card">
-              <h2 className="text-lg font-semibold mb-3">근본 원인 분석</h2>
+          {/* Root Cause - Only visible to QPS/MASTER as reference */}
+          {incident.root_cause && canViewReporterOptionalFields() && (
+            <div className="card bg-blue-50 border border-blue-100">
+              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                근본 원인 분석
+                <span className="text-xs font-normal text-blue-600 bg-blue-100 px-2 py-0.5 rounded">보고자 의견 (참고용)</span>
+              </h2>
               <p className="text-gray-700 whitespace-pre-wrap">
                 {incident.root_cause}
               </p>
             </div>
           )}
 
-          {/* Improvements */}
-          {incident.improvements && (
-            <div className="card">
-              <h2 className="text-lg font-semibold mb-3">개선 방안</h2>
+          {/* Improvements - Only visible to QPS/MASTER as reference */}
+          {incident.improvements && canViewReporterOptionalFields() && (
+            <div className="card bg-blue-50 border border-blue-100">
+              <h2 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                개선 방안
+                <span className="text-xs font-normal text-blue-600 bg-blue-100 px-2 py-0.5 rounded">보고자 의견 (참고용)</span>
+              </h2>
               <p className="text-gray-700 whitespace-pre-wrap">
                 {incident.improvements}
               </p>

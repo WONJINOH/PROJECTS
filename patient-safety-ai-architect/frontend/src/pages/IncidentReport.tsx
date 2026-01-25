@@ -1,11 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
-import { AlertCircle, Save, Upload } from 'lucide-react'
+import { AlertCircle, Save, Upload, Shield, Info } from 'lucide-react'
 import { incidentApi, CreateIncidentData } from '@/utils/api'
+import { useAuth } from '@/hooks/useAuth'
 
 // Validation schema matching backend requirements
 const incidentSchema = z.object({
@@ -59,21 +60,48 @@ const grades = [
 
 export default function IncidentReport() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [files, setFiles] = useState<File[]>([])
+  const [isAnonymous, setIsAnonymous] = useState(false)
 
   const {
     register,
     handleSubmit,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<IncidentForm>({
     resolver: zodResolver(incidentSchema),
     defaultValues: {
       reported_at: new Date().toISOString().slice(0, 16),
+      reporter_name: '',
     },
   })
 
   const selectedGrade = watch('grade')
+
+  // Auto-fill reporter name from logged-in user
+  useEffect(() => {
+    if (user?.fullName && !isAnonymous) {
+      setValue('reporter_name', user.fullName)
+    }
+  }, [user, setValue, isAnonymous])
+
+  // Handle anonymous checkbox change
+  useEffect(() => {
+    if (isAnonymous) {
+      setValue('reporter_name', '')
+    } else if (user?.fullName) {
+      setValue('reporter_name', user.fullName)
+    }
+  }, [isAnonymous, user, setValue])
+
+  // Reset anonymous when grade changes from near_miss
+  useEffect(() => {
+    if (selectedGrade !== 'near_miss') {
+      setIsAnonymous(false)
+    }
+  }, [selectedGrade])
 
   const createMutation = useMutation({
     mutationFn: (data: CreateIncidentData) => incidentApi.create(data),
@@ -110,6 +138,20 @@ export default function IncidentReport() {
         {/* Basic Info Card */}
         <div className="card">
           <h2 className="text-lg font-semibold mb-4">기본 정보</h2>
+
+          {/* Privacy Notice */}
+          <div className="mb-6 p-4 bg-teal-50 border border-teal-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <Shield className="h-5 w-5 text-teal-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-semibold text-teal-800">보고자 보호 안내</h3>
+                <p className="mt-1 text-sm text-teal-700">
+                  보고자의 이름은 <strong>비밀이 보장</strong>됩니다. 보고된 정보는 환자안전 개선 목적으로만 사용되며,
+                  보고자에 대한 어떠한 불이익도 없습니다. 솔직한 보고가 환자안전을 향상시키는 첫걸음입니다.
+                </p>
+              </div>
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Category */}
@@ -171,7 +213,7 @@ export default function IncidentReport() {
               <input
                 {...register('location')}
                 type="text"
-                placeholder="예: 301호, 물리치료실"
+                placeholder="예: 301호, 물리치료실, 화장실"
                 className="input-field mt-1"
               />
               {errors.location && (
@@ -180,23 +222,46 @@ export default function IncidentReport() {
             </div>
 
             {/* Reporter Name */}
-            <div>
+            <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700">
                 보고자 이름 {selectedGrade !== 'near_miss' && '*'}
               </label>
-              <input
-                {...register('reporter_name')}
-                type="text"
-                className="input-field mt-1"
-                placeholder={selectedGrade === 'near_miss' ? '선택 입력' : '필수 입력'}
-              />
+              <div className="mt-1 flex items-center gap-4">
+                <input
+                  {...register('reporter_name')}
+                  type="text"
+                  className={`input-field flex-1 ${isAnonymous ? 'bg-gray-100 text-gray-500' : ''}`}
+                  placeholder={selectedGrade === 'near_miss' ? '선택 입력 (익명 가능)' : '필수 입력'}
+                  disabled={isAnonymous}
+                  readOnly={!isAnonymous && !!user?.fullName}
+                />
+              </div>
+
+              {/* Anonymous checkbox - only show for near_miss */}
+              {selectedGrade === 'near_miss' && (
+                <label className="mt-2 flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isAnonymous}
+                    onChange={(e) => setIsAnonymous(e.target.checked)}
+                    className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                  />
+                  <span className="text-sm text-gray-700">익명으로 보고하기</span>
+                  <span className="text-xs text-gray-500">(근접오류에 한해 가능)</span>
+                </label>
+              )}
+
               {errors.reporter_name && (
                 <p className="mt-1 text-sm text-red-600">{errors.reporter_name.message}</p>
               )}
-              {selectedGrade === 'near_miss' && (
-                <p className="mt-1 text-xs text-gray-500">
-                  근접오류의 경우 보고자 이름은 선택 사항입니다
-                </p>
+
+              {selectedGrade === 'near_miss' && !isAnonymous && (
+                <div className="mt-2 flex items-center gap-1 text-gray-500">
+                  <Info className="h-4 w-4" />
+                  <span className="text-xs">
+                    근접오류의 경우 익명 보고가 가능합니다. 위 체크박스를 선택하면 보고자 이름 없이 제출됩니다.
+                  </span>
+                </div>
               )}
             </div>
 
@@ -213,6 +278,20 @@ export default function IncidentReport() {
               {errors.reported_at && (
                 <p className="mt-1 text-sm text-red-600">{errors.reported_at.message}</p>
               )}
+            </div>
+
+            {/* Department */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                부서
+              </label>
+              <input
+                {...register('department')}
+                type="text"
+                placeholder="예: 간호부, 재활의학과"
+                className="input-field mt-1"
+                defaultValue={user?.department || ''}
+              />
             </div>
           </div>
         </div>

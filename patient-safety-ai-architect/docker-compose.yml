@@ -16,7 +16,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"  # localhost only - 외부 접근 차단
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -30,7 +30,7 @@ services:
     image: redis:7-alpine
     container_name: patient-safety-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"  # localhost only - 외부 접근 차단
     volumes:
       - redis_data:/data
     healthcheck:
@@ -76,6 +76,9 @@ services:
     container_name: patient-safety-frontend
     ports:
       - "3000:80"
+      - "3443:443"
+    volumes:
+      - ./certs:/etc/nginx/certs:ro
     depends_on:
       - backend
     networks:

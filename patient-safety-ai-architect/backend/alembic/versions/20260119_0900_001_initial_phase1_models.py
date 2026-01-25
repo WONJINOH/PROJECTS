@@ -29,53 +29,57 @@ def upgrade() -> None:
     """Create Phase 1 tables."""
 
     # === ENUM Types ===
+    # Use create_type=False since we're manually calling .create()
     role_enum = postgresql.ENUM(
         'reporter', 'qps_staff', 'vice_chair', 'director', 'admin', 'master',
-        name='role', create_type=True
+        name='role', create_type=False
     )
     role_enum.create(op.get_bind(), checkfirst=True)
 
     incident_category_enum = postgresql.ENUM(
         'fall', 'medication', 'pressure_ulcer', 'infection',
         'medical_device', 'surgery', 'transfusion', 'other',
-        name='incidentcategory', create_type=True
+        name='incidentcategory', create_type=False
     )
     incident_category_enum.create(op.get_bind(), checkfirst=True)
 
     incident_grade_enum = postgresql.ENUM(
         'near_miss', 'no_harm', 'mild', 'moderate', 'severe', 'death',
-        name='incidentgrade', create_type=True
+        name='incidentgrade', create_type=False
     )
     incident_grade_enum.create(op.get_bind(), checkfirst=True)
 
     approval_level_enum = postgresql.ENUM(
         'l1_qps', 'l2_vice_chair', 'l3_director',
-        name='approvallevel', create_type=True
+        name='approvallevel', create_type=False
     )
     approval_level_enum.create(op.get_bind(), checkfirst=True)
 
     approval_status_enum = postgresql.ENUM(
         'pending', 'approved', 'rejected',
-        name='approvalstatus', create_type=True
+        name='approvalstatus', create_type=False
     )
     approval_status_enum.create(op.get_bind(), checkfirst=True)
 
     action_status_enum = postgresql.ENUM(
         'open', 'in_progress', 'completed', 'verified', 'cancelled',
-        name='actionstatus', create_type=True
+        name='actionstatus', create_type=False
     )
     action_status_enum.create(op.get_bind(), checkfirst=True)
 
     action_priority_enum = postgresql.ENUM(
         'low', 'medium', 'high', 'critical',
-        name='actionpriority', create_type=True
+        name='actionpriority', create_type=False
     )
     action_priority_enum.create(op.get_bind(), checkfirst=True)
 
     audit_event_type_enum = postgresql.ENUM(
-        'login', 'logout', 'create', 'read', 'update', 'delete',
-        'export', 'approve', 'reject',
-        name='auditeventtype', create_type=True
+        'auth_login', 'auth_logout', 'auth_failed',
+        'incident_view', 'incident_create', 'incident_update', 'incident_delete', 'incident_export',
+        'attachment_upload', 'attachment_download', 'attachment_delete',
+        'approval_action', 'permission_change',
+        'risk_create', 'risk_update', 'risk_view', 'risk_escalate', 'risk_assessment',
+        name='auditeventtype', create_type=False
     )
     audit_event_type_enum.create(op.get_bind(), checkfirst=True)
 
@@ -187,20 +191,18 @@ def upgrade() -> None:
         'audit_logs',
         sa.Column('id', sa.Integer(), primary_key=True, index=True),
         sa.Column('event_type', audit_event_type_enum, nullable=False, index=True),
-        sa.Column('timestamp', sa.DateTime(), server_default=sa.func.now(), nullable=False, index=True),
-        sa.Column('user_id', sa.Integer(), sa.ForeignKey('users.id'), nullable=True),
+        sa.Column('timestamp', sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False, index=True),
+        sa.Column('user_id', sa.Integer(), nullable=True, index=True),  # nullable for failed logins
+        sa.Column('user_role', sa.String(50), nullable=True),
         sa.Column('username', sa.String(50), nullable=True),
-        sa.Column('resource_type', sa.String(50), nullable=False),
-        sa.Column('resource_id', sa.String(50), nullable=True),
-        sa.Column('action', sa.String(100), nullable=False),
         sa.Column('ip_address', sa.String(45), nullable=True),
         sa.Column('user_agent', sa.String(500), nullable=True),
-        sa.Column('request_method', sa.String(10), nullable=True),
-        sa.Column('request_path', sa.String(500), nullable=True),
-        sa.Column('result', sa.String(20), nullable=False),  # success, failure
-        sa.Column('details', sa.Text(), nullable=True),
-        sa.Column('entry_hash', sa.String(64), nullable=True),  # SHA-256 for tamper detection
-        sa.Column('previous_hash', sa.String(64), nullable=True),  # Chain for integrity
+        sa.Column('resource_type', sa.String(50), nullable=True),
+        sa.Column('resource_id', sa.String(100), nullable=True),
+        sa.Column('action_detail', sa.JSON(), nullable=True),  # Event-specific data
+        sa.Column('result', sa.String(20), nullable=False),  # success, failure, denied
+        sa.Column('previous_hash', sa.String(64), nullable=True),
+        sa.Column('entry_hash', sa.String(64), nullable=False),
     )
 
     # === Indexes for Performance ===
@@ -209,13 +211,12 @@ def upgrade() -> None:
     op.create_index('ix_approvals_incident_id', 'approvals', ['incident_id'])
     op.create_index('ix_attachments_incident_id', 'attachments', ['incident_id'])
     op.create_index('ix_actions_due_date', 'actions', ['due_date'])
-    op.create_index('ix_audit_logs_user_id', 'audit_logs', ['user_id'])
+    # Note: ix_audit_logs_user_id is created automatically by index=True on the column
 
 
 def downgrade() -> None:
     """Drop Phase 1 tables."""
     # Drop indexes first
-    op.drop_index('ix_audit_logs_user_id', table_name='audit_logs')
     op.drop_index('ix_actions_due_date', table_name='actions')
     op.drop_index('ix_attachments_incident_id', table_name='attachments')
     op.drop_index('ix_approvals_incident_id', table_name='approvals')

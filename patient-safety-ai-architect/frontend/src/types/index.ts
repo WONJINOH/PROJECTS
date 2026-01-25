@@ -28,6 +28,13 @@ export type UserRole =
   | 'admin'
   | 'master'
 
+export type UserStatus =
+  | 'pending'
+  | 'active'
+  | 'dormant'
+  | 'suspended'
+  | 'deleted'
+
 export type ApprovalLevel = 'l1_qps' | 'l2_vice_chair' | 'l3_director'
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected'
@@ -40,6 +47,11 @@ export interface User {
   role: UserRole
   department?: string
   isActive: boolean
+  status: UserStatus
+  passwordExpiresAt?: string
+  lastLogin?: string
+  createdAt: string
+  approvedAt?: string
 }
 
 export interface Incident {
@@ -758,4 +770,201 @@ export const ACTION_PRIORITY_COLORS: Record<ActionPriority, string> = {
   medium: 'bg-blue-100 text-blue-800',
   high: 'bg-orange-100 text-orange-800',
   critical: 'bg-red-100 text-red-800',
+}
+
+// ===== Risk Types =====
+
+export type RiskSourceType =
+  | 'psr'
+  | 'rounding'
+  | 'audit'
+  | 'complaint'
+  | 'indicator'
+  | 'external'
+  | 'proactive'
+  | 'other'
+
+export type RiskCategory =
+  | 'fall'
+  | 'medication'
+  | 'pressure_ulcer'
+  | 'infection'
+  | 'transfusion'
+  | 'procedure'
+  | 'restraint'
+  | 'environment'
+  | 'security'
+  | 'communication'
+  | 'handoff'
+  | 'identification'
+  | 'other'
+
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical'
+
+export type RiskStatus =
+  | 'identified'
+  | 'assessing'
+  | 'treating'
+  | 'monitoring'
+  | 'closed'
+  | 'accepted'
+
+export type RiskAssessmentType =
+  | 'initial'
+  | 'periodic'
+  | 'post_treatment'
+  | 'post_incident'
+
+export interface Risk {
+  id: number
+  riskCode: string
+  title: string
+  description: string
+  sourceType: RiskSourceType
+  sourceIncidentId?: number
+  sourceDetail?: string
+  category: RiskCategory
+  currentControls?: string
+  probability: number
+  severity: number
+  riskScore: number
+  riskLevel: RiskLevel
+  residualProbability?: number
+  residualSeverity?: number
+  residualScore?: number
+  residualLevel?: RiskLevel
+  ownerId: number
+  ownerName?: string
+  targetDate?: string
+  status: RiskStatus
+  autoEscalated: boolean
+  escalationReason?: string
+  createdById: number
+  createdByName?: string
+  createdAt: string
+  updatedAt: string
+  closedAt?: string
+  closedById?: number
+}
+
+export interface RiskAssessment {
+  id: number
+  riskId: number
+  assessmentType: RiskAssessmentType
+  assessedAt: string
+  assessorId: number
+  assessorName?: string
+  probability: number
+  severity: number
+  score: number
+  level: RiskLevel
+  rationale?: string
+}
+
+export interface RiskMatrixCell {
+  probability: number
+  severity: number
+  count: number
+  riskIds: number[]
+  level: RiskLevel
+}
+
+export interface CreateRiskData {
+  title: string
+  description: string
+  source_type: RiskSourceType
+  source_incident_id?: number
+  source_detail?: string
+  category: RiskCategory
+  current_controls?: string
+  probability: number
+  severity: number
+  owner_id: number
+  target_date?: string
+}
+
+export interface UpdateRiskData {
+  title?: string
+  description?: string
+  current_controls?: string
+  probability?: number
+  severity?: number
+  residual_probability?: number
+  residual_severity?: number
+  owner_id?: number
+  target_date?: string
+  status?: RiskStatus
+}
+
+export interface CreateRiskAssessmentData {
+  assessment_type: RiskAssessmentType
+  probability: number
+  severity: number
+  rationale?: string
+}
+
+export const RISK_SOURCE_TYPE_LABELS: Record<RiskSourceType, string> = {
+  psr: '환자안전사건보고 (PSR)',
+  rounding: '안전 라운딩',
+  audit: '내부 감사',
+  complaint: '민원/불만',
+  indicator: '지표 이상',
+  external: '외부 정보',
+  proactive: '선제적 식별 (FMEA)',
+  other: '기타',
+}
+
+export const RISK_CATEGORY_LABELS: Record<RiskCategory, string> = {
+  fall: '낙상',
+  medication: '투약',
+  pressure_ulcer: '욕창',
+  infection: '감염',
+  transfusion: '수혈',
+  procedure: '검사/시술',
+  restraint: '신체보호대',
+  environment: '환경/시설',
+  security: '보안',
+  communication: '의사소통',
+  handoff: '인수인계',
+  identification: '환자확인',
+  other: '기타',
+}
+
+export const RISK_LEVEL_LABELS: Record<RiskLevel, string> = {
+  low: '저위험',
+  medium: '중위험',
+  high: '고위험',
+  critical: '극심',
+}
+
+export const RISK_LEVEL_COLORS: Record<RiskLevel, string> = {
+  low: 'bg-green-100 text-green-800',
+  medium: 'bg-yellow-100 text-yellow-800',
+  high: 'bg-orange-100 text-orange-800',
+  critical: 'bg-red-100 text-red-800',
+}
+
+export const RISK_STATUS_LABELS: Record<RiskStatus, string> = {
+  identified: '식별됨',
+  assessing: '평가 중',
+  treating: '조치 진행 중',
+  monitoring: '모니터링 중',
+  closed: '종결',
+  accepted: '수용됨',
+}
+
+export const RISK_STATUS_COLORS: Record<RiskStatus, string> = {
+  identified: 'bg-blue-100 text-blue-800',
+  assessing: 'bg-purple-100 text-purple-800',
+  treating: 'bg-yellow-100 text-yellow-800',
+  monitoring: 'bg-cyan-100 text-cyan-800',
+  closed: 'bg-gray-100 text-gray-800',
+  accepted: 'bg-green-100 text-green-800',
+}
+
+export const RISK_ASSESSMENT_TYPE_LABELS: Record<RiskAssessmentType, string> = {
+  initial: '초기 평가',
+  periodic: '정기 재평가',
+  post_treatment: '조치 후 재평가',
+  post_incident: '사건 발생 후 재평가',
 }

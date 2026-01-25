@@ -75,13 +75,10 @@ def can_access_incident(user: User, incident: Incident) -> bool:
 
     Rules:
     - REPORTER: Own incidents only
-    - QPS_STAFF: Same department
-    - VICE_CHAIR, DIRECTOR, MASTER: All incidents
+    - QPS_STAFF, VICE_CHAIR, DIRECTOR, MASTER: All incidents
     """
-    if user.role in [Role.VICE_CHAIR, Role.DIRECTOR, Role.MASTER]:
+    if user.role in [Role.QPS_STAFF, Role.VICE_CHAIR, Role.DIRECTOR, Role.MASTER]:
         return True
-    if user.role == Role.QPS_STAFF:
-        return incident.department == user.department
     if user.role == Role.REPORTER:
         return incident.reporter_id == user.id
     return False
@@ -93,13 +90,10 @@ def can_edit_incident(user: User, incident: Incident) -> bool:
 
     Rules:
     - REPORTER: Own drafts only
-    - QPS_STAFF: Same department
-    - VICE_CHAIR, DIRECTOR, MASTER: Any incident
+    - QPS_STAFF, VICE_CHAIR, DIRECTOR, MASTER: Any incident (for review and correction)
     """
-    if user.role in [Role.VICE_CHAIR, Role.DIRECTOR, Role.MASTER]:
+    if user.role in [Role.QPS_STAFF, Role.VICE_CHAIR, Role.DIRECTOR, Role.MASTER]:
         return True
-    if user.role == Role.QPS_STAFF:
-        return incident.department == user.department
     if user.role == Role.REPORTER:
         return incident.reporter_id == user.id and incident.status == "draft"
     return False
@@ -107,14 +101,10 @@ def can_edit_incident(user: User, incident: Incident) -> bool:
 
 def build_access_filter(user: User):
     """Build SQLAlchemy filter for row-level access control."""
-    if user.role in [Role.VICE_CHAIR, Role.DIRECTOR, Role.MASTER]:
+    # QPS_STAFF, VICE_CHAIR, DIRECTOR, MASTER: All incidents
+    if user.role in [Role.QPS_STAFF, Role.VICE_CHAIR, Role.DIRECTOR, Role.MASTER]:
         return Incident.is_deleted == False
-    if user.role == Role.QPS_STAFF:
-        return and_(
-            Incident.is_deleted == False,
-            Incident.department == user.department,
-        )
-    # REPORTER or ADMIN
+    # REPORTER or ADMIN: Own incidents only
     return and_(
         Incident.is_deleted == False,
         Incident.reporter_id == user.id,

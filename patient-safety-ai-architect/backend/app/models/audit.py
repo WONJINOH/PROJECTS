@@ -67,7 +67,11 @@ class AuditLog(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     # Event details
-    event_type = Column(Enum(AuditEventType), nullable=False, index=True)
+    event_type = Column(
+        Enum(AuditEventType, values_callable=lambda enum: [e.value for e in enum]),
+        nullable=False,
+        index=True
+    )
     timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
 
     # Actor
