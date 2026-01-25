@@ -6,18 +6,54 @@ Dashboard API
 - 카테고리별 지표
 - 히트맵 데이터
 - 추세 분석
+- 최근 사고 목록
 """
 
 from typing import Annotated, Optional, List
 from datetime import date, datetime
+import re
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select, func, and_, or_
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.security.dependencies import get_current_user, require_permission
 from app.security.rbac import Permission
-from app.models.user import User
+from app.models.user import User, Role
+from app.models.incident import Incident
+from app.models.fall_detail import FallDetail
+from app.models.medication_detail import MedicationErrorDetail
+from app.database import get_db
 
 router = APIRouter()
+
+
+def generalize_location(location: str) -> str:
+    """구체적인 장소를 일반화된 카테고리로 변환"""
+    if not location:
+        return "기타"
+
+    location = location.strip()
+
+    # 장소 패턴 매핑
+    patterns = [
+        (r"\d{2,3}(-\d)?호|병실", "병실"),
+        (r"화장실|변기|욕실|샤워실", "화장실"),
+        (r"복도|홀|로비|현관", "복도"),
+        (r"간호(사)?실|스테이션|NS", "간호사실"),
+        (r"처치실|드레싱룸", "처치실"),
+        (r"물리치료|재활치료|PT실|OT실|치료실", "재활치료실"),
+        (r"식당|급식|식사|카페", "식당"),
+        (r"엘리베이터|승강기|EV", "엘리베이터"),
+        (r"계단", "계단"),
+        (r"야외|정원|옥상|테라스", "야외"),
+    ]
+
+    for pattern, label in patterns:
+        if re.search(pattern, location, re.IGNORECASE):
+            return label
+
+    return "기타"
 
 
 @router.get(
@@ -534,3 +570,108 @@ async def get_active_indicators(
         },
         # ... 더 많은 지표
     ]
+
+
+@router.get(
+    "/recent-incidents",
+    summary="최근 사고 보고 목록",
+)
+async def get_recent_incidents(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = Query(default=10, ge=1, le=50, description="조회 개수"),
+) -> List[dict]:
+    """
+    최근 사고 보고 목록 조회 (대시보드용)
+
+    - REPORTER: 자신이 보고한 사고만 조회
+    - QPS_STAFF/VICE_CHAIR/DIRECTOR/MASTER: 전체 사고 조회
+
+    Returns:
+        - id: 사고 ID
+        - category: 사고 유형
+        - grade: 등급
+        - location: 장소 (일반화됨)
+        - original_location: 원본 장소
+        - occurred_at: 발생일시
+        - status: 상태
+        - has_analysis: 분석 완료 여부
+        - analysis_type: 분석 유형 (fall_detail, medication_detail 등)
+    """
+    # 접근 필터 적용
+    if current_user.role in [Role.QPS_STAFF, Role.VICE_CHAIR, Role.DIRECTOR, Role.MASTER]:
+        access_filter = Incident.is_deleted == False
+    else:
+        access_filter = and_(
+            Incident.is_deleted == False,
+            Incident.reporter_id == current_user.id
+        )
+
+    # 최근 사고 조회
+    query = (
+        select(Incident)
+        .where(access_filter)
+        .order_by(Incident.occurred_at.desc())
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    incidents = result.scalars().all()
+
+    # 각 사고에 대해 분석 상태 확인
+    incident_list = []
+    for incident in incidents:
+        # 분석 상태 확인
+        has_analysis = False
+        analysis_type = None
+
+        # Get category value (handle both enum and string)
+        cat_value = incident.category.value if hasattr(incident.category, 'value') else incident.category
+
+        # Check for analysis records (handle missing tables gracefully)
+        try:
+            if cat_value == "fall":
+                fall_query = select(FallDetail).where(FallDetail.incident_id == incident.id)
+                fall_result = await db.execute(fall_query)
+                if fall_result.scalar_one_or_none():
+                    has_analysis = True
+                    analysis_type = "fall_detail"
+
+            elif cat_value == "medication":
+                med_query = select(MedicationErrorDetail).where(MedicationErrorDetail.incident_id == incident.id)
+                med_result = await db.execute(med_query)
+                if med_result.scalar_one_or_none():
+                    has_analysis = True
+                    analysis_type = "medication_detail"
+        except Exception:
+            # Table might not exist - ignore and continue
+            pass
+
+        # 카테고리 라벨 매핑
+        category_labels = {
+            "fall": "낙상",
+            "medication": "투약",
+            "pressure_ulcer": "욕창",
+            "infection": "감염",
+            "medical_device": "의료기기",
+            "surgery": "수술",
+            "transfusion": "수혈",
+            "other": "기타",
+        }
+
+        # Get grade value
+        grade_value = incident.grade.value if hasattr(incident.grade, 'value') else incident.grade
+
+        incident_list.append({
+            "id": incident.id,
+            "category": category_labels.get(cat_value, cat_value),
+            "category_code": cat_value,
+            "grade": grade_value,
+            "location": generalize_location(incident.location),
+            "original_location": incident.location,
+            "occurred_at": incident.occurred_at.isoformat() if incident.occurred_at else None,
+            "status": incident.status,  # status is already a string, not enum
+            "has_analysis": has_analysis,
+            "analysis_type": analysis_type,
+        })
+
+    return incident_list

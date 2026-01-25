@@ -38,6 +38,7 @@ from app.api import (
     environment_details,
     security_details,
     risks,
+    dashboard,
 )
 from app.security.audit import AuditMiddleware
 
@@ -65,7 +66,11 @@ app = FastAPI(
 # CORS Configuration (restrict in production)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Frontend dev server
+    allow_origins=[
+        "http://localhost:3000",    # Frontend dev server (HTTP)
+        "https://localhost:3443",   # Frontend dev server (HTTPS)
+        "https://localhost",        # Frontend via nginx
+    ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
@@ -89,6 +94,7 @@ app.include_router(procedure_details.router, prefix="/api/procedure-details", ta
 app.include_router(environment_details.router, prefix="/api/environment-details", tags=["Environment Details"])
 app.include_router(security_details.router, prefix="/api/security-details", tags=["Security Details"])
 app.include_router(risks.router, prefix="/api/risks", tags=["Risk Management"])
+app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
 
 
 @app.get("/api/health")

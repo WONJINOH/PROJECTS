@@ -11,7 +11,7 @@ import enum
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import Column, Integer, String, DateTime, Enum, Text, ForeignKey, Boolean, JSON
+from sqlalchemy import Column, Integer, String, DateTime, Enum as SQLEnum, Text, ForeignKey, Boolean, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import EncryptedType
 from sqlalchemy_utils.types.encrypted.encrypted_type import AesEngine
@@ -136,6 +136,11 @@ class IncidentGrade(str, enum.Enum):
     DEATH = "death"            # 사망
 
 
+def enum_values_callable(enum_class):
+    """Return enum values for SQLAlchemy Enum type to ensure lowercase values are used."""
+    return [e.value for e in enum_class]
+
+
 class Incident(Base):
     """Patient safety incident model."""
 
@@ -144,8 +149,15 @@ class Incident(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     # === Common Page Required Fields ===
-    category = Column(Enum(IncidentCategory), nullable=False, index=True)
-    grade = Column(Enum(IncidentGrade), nullable=False, index=True)
+    # Use values_callable to ensure enum values (lowercase) are sent to PostgreSQL
+    category = Column(
+        SQLEnum(IncidentCategory, values_callable=lambda x: enum_values_callable(x)),
+        nullable=False, index=True
+    )
+    grade = Column(
+        SQLEnum(IncidentGrade, values_callable=lambda x: enum_values_callable(x)),
+        nullable=False, index=True
+    )
     occurred_at = Column(DateTime(timezone=True), nullable=False)
     location = Column(String(200), nullable=False)
     description = Column(Text, nullable=False)
@@ -166,7 +178,10 @@ class Incident(Base):
     # === PSR 공통 필드 (대시보드용) ===
 
     # 문제의 결과 - 환자에게 미친 영향
-    outcome_impact = Column(Enum(IncidentOutcomeImpact), nullable=True, index=True)
+    outcome_impact = Column(
+        SQLEnum(IncidentOutcomeImpact, values_callable=lambda x: enum_values_callable(x)),
+        nullable=True, index=True
+    )
     outcome_impact_detail = Column(Text, nullable=True)
 
     # 기여요인 (복수 선택) - JSON 배열로 저장
@@ -175,7 +190,10 @@ class Incident(Base):
     contributing_factors_detail = Column(Text, nullable=True)
 
     # 환자 신체적 손상 결과
-    patient_physical_outcome = Column(Enum(PatientPhysicalOutcome), nullable=True, index=True)
+    patient_physical_outcome = Column(
+        SQLEnum(PatientPhysicalOutcome, values_callable=lambda x: enum_values_callable(x)),
+        nullable=True, index=True
+    )
     patient_physical_outcome_detail = Column(Text, nullable=True)
 
     # 개선활동내역 (복수 선택) - JSON 배열로 저장
@@ -183,7 +201,10 @@ class Incident(Base):
     improvement_types = Column(JSON, nullable=True)
 
     # 인적요인 - 지침/규정/절차 관련
-    policy_factor = Column(Enum(PolicyFactorType), nullable=True)
+    policy_factor = Column(
+        SQLEnum(PolicyFactorType, values_callable=lambda x: enum_values_callable(x)),
+        nullable=True
+    )
     policy_factor_detail = Column(Text, nullable=True)
 
     # 관리 관련 요인 (복수 선택) - JSON 배열로 저장
@@ -193,7 +214,10 @@ class Incident(Base):
 
     # === Just Culture 분류 ===
     # 행동 유형 분류 (QPS 담당자가 분석 후 입력)
-    behavior_type = Column(Enum(BehaviorType), nullable=True, index=True)
+    behavior_type = Column(
+        SQLEnum(BehaviorType, values_callable=lambda x: enum_values_callable(x)),
+        nullable=True, index=True
+    )
     behavior_type_rationale = Column(Text, nullable=True)  # 분류 근거
 
     # === Sensitive Patient Info (Encrypted) ===
