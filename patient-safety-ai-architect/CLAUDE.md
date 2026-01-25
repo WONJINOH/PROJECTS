@@ -82,8 +82,8 @@ PASS when:
 |--------|---------------|---------|
 | **feature-dev** | `/feature-dev` | Guided feature development with architecture focus |
 | **frontend-design** | `/frontend-design` | High-quality UI/UX design for React components |
-| **playwright** | MCP tools `mcp__playwright__*` | Browser automation & E2E testing |
-| **context7** | MCP tools `mcp__context7__*` | Latest library documentation lookup |
+| **playwright** | MCP tools `mcp__plugin_playwright_playwright__*` | Browser automation & E2E testing |
+| **context7** | MCP tools `mcp__plugin_context7_context7__*` | Latest library documentation lookup |
 | **hookify** | `/hookify` | Create and manage Claude Code hooks |
 
 ### When to Use Each Plugin
@@ -103,26 +103,89 @@ Use for UI work:
 #### playwright (MCP)
 Use for testing:
 ```
-mcp__playwright__browser_navigate → Navigate to page
-mcp__playwright__browser_snapshot → Capture page state
-mcp__playwright__browser_click → Interact with elements
+mcp__plugin_playwright_playwright__browser_navigate → Navigate to page
+mcp__plugin_playwright_playwright__browser_snapshot → Capture page state
+mcp__plugin_playwright_playwright__browser_click → Interact with elements
 ```
 
 #### context7 (MCP)
 Use for documentation lookup:
 ```
-mcp__context7__resolve-library-id → Find library ID
-mcp__context7__query-docs → Get latest docs (React, FastAPI, SQLAlchemy, etc.)
+mcp__plugin_context7_context7__resolve-library-id → Find library ID
+mcp__plugin_context7_context7__query-docs → Get latest docs (React, FastAPI, SQLAlchemy, etc.)
 ```
 
-### Project-Specific Hooks
+---
+
+## Project-Specific Skills
+
+Located in `.claude/skills/`:
+
+| Skill | Command | Purpose |
+|-------|---------|---------|
+| **sast** | `/sast` | Static Application Security Testing - SARIF + Markdown 리포트 |
+| **sca** | `/sca` | Software Composition Analysis - 의존성 취약점 스캔 |
+| **secrets-scan** | `/secrets-scan` | 하드코딩된 시크릿 탐지 및 교체 가이드 |
+| **pipa-evidence** | `/pipa-evidence` | PIPA 컴플라이언스 증거 패키지 생성 |
+| **access-control** | `/access-control` | RBAC 검토 및 구현 |
+| **audit-logging** | `/audit-logging` | 감사 로깅 구현 및 검증 |
+| **cryptography** | `/cryptography` | 암호화 (at-rest, in-transit, 패스워드 해싱) 검증 |
+| **release-gate** | `/release-gate` | 릴리스 준비 상태 평가 (PASS/FAIL) |
+
+---
+
+## Project-Specific Agents
+
+Located in `.claude/agents/`:
+
+| Agent | Purpose | Tools |
+|-------|---------|-------|
+| **compliance-expert-kr** | PIPA 컴플라이언스 전문가 - 증거 패키지 생성 및 릴리스 게이트 최종 승인 | Read, Write, Edit, Glob, Grep, WebSearch, WebFetch |
+| **security-analyst** | 보안 분석가 - 자동화된 보안 스캔 실행 및 취약점 분석 | Read, Write, Edit, Bash, Glob, Grep, WebSearch, WebFetch |
+| **data-analysis-agent** | 통계/ML 기반 데이터 분석 워크플로우 자동화 | Read, Write, Edit, Bash, Glob, Grep |
+| **webapp-verify-agent** | 웹앱 기능 검증 및 E2E 테스트 자동화 | mcp__playwright-test__*, Read, Grep, Bash |
+
+---
+
+## Project-Specific Hooks
+
 Located in `.claude/hooks/`:
-- `pii-protection.md` - Prevents real PII in code
-- `security-check.md` - Blocks security vulnerabilities
-- `api-schema-sync.md` - Ensures model/schema sync
-- `rbac-check.md` - Verifies API authorization
-- `migration-reminder.md` - Reminds Alembic migrations
-- `test-reminder.md` - Prompts test updates
+
+### Security & Compliance
+| Hook | Purpose |
+|------|---------|
+| `pii-protection.md` | 실제 PII 코드/테스트/로그 포함 방지 |
+| `security-check.md` | 보안 취약점 패턴 차단 |
+| `db-query-protection.md` | DB 쿼리 실행 시 환자 데이터 노출 방지 |
+| `rbac-check.md` | API 권한 검증 |
+
+### Code Quality
+| Hook | Purpose |
+|------|---------|
+| `api-schema-sync.md` | 모델/스키마 동기화 확인 |
+| `code-quality-check.md` | 코드 품질 자동 검증 |
+| `webapp-quality-check.md` | 웹앱 코드 품질 검증 |
+
+### Development Workflow
+| Hook | Purpose |
+|------|---------|
+| `migration-reminder.md` | Alembic 마이그레이션 리마인더 |
+| `test-reminder.md` | 테스트 업데이트 프롬프트 |
+| `auto-component-setup.md` | 새 구성요소 추가 시 자동 설정 |
+
+### Token Optimization (워크스페이스 공유)
+| Hook | Purpose |
+|------|---------|
+| `prevent-token-waste.md` | 토큰 낭비 방지 |
+| `prevent-large-file-read.md` | 큰 파일(500줄+) 전체 읽기 방지 |
+| `prevent-duplicate-work.md` | 중복 작업 차단 |
+
+### Automation (워크스페이스 공유)
+| Hook | Purpose |
+|------|---------|
+| `auto-feedback-recorder.md` | 대화 종료 시 자동 피드백 기록 |
+| `realtime-feedback-detector.md` | 실시간 피드백 감지 |
+| `auto-mcp-tool-suggest.md` | 외부 도구 자동 제안 |
 
 ---
 
