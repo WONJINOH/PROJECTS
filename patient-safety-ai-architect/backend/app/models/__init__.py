@@ -35,6 +35,7 @@ from app.models.pressure_ulcer import (
     PressureUlcerGrade,
     PressureUlcerLocation,
     PressureUlcerOrigin,
+    PressureUlcerEndReason,
 )
 
 # Fall (낙상)
@@ -126,6 +127,12 @@ from app.models.security_detail import (
     InvolvedPartyType,
 )
 
+# Lookup Tables (진료과/주치의)
+from app.models.lookup import (
+    Department,
+    Physician,
+)
+
 # Incident PSR Enums
 from app.models.incident import (
     ImprovementType,
@@ -183,6 +190,7 @@ __all__ = [
     "PressureUlcerGrade",
     "PressureUlcerLocation",
     "PressureUlcerOrigin",
+    "PressureUlcerEndReason",
     # Fall
     "FallDetail",
     "FallMonthlyStats",
@@ -242,6 +250,9 @@ __all__ = [
     "SecurityType",
     "SecuritySeverity",
     "InvolvedPartyType",
+    # Lookup Tables
+    "Department",
+    "Physician",
     # Incident PSR Enums
     "ImprovementType",
     "PolicyFactorType",

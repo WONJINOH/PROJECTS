@@ -292,31 +292,54 @@ async def request_registration(
             detail="이미 등록된 이메일입니다.",
         )
 
-    # Create new user with PENDING status
-    new_user = User(
-        username=user_data.username,
-        email=user_data.email,
-        hashed_password=hash_password(user_data.password),
-        full_name=user_data.full_name,
-        role=Role.REPORTER,  # Default role, admin can change during approval
-        department=user_data.department,
-        is_active=False,  # Inactive until approved
-        status=UserStatus.PENDING,
-        password_changed_at=datetime.now(timezone.utc),
-        password_expires_at=calculate_password_expiry(),
-    )
+    # Import settings for auto-approval check
+    from app.config import settings
+
+    # Create new user - status depends on AUTO_APPROVE_REGISTRATION setting
+    if settings.AUTO_APPROVE_REGISTRATION:
+        # 자동 승인: 즉시 활성화
+        new_user = User(
+            username=user_data.username,
+            email=user_data.email,
+            hashed_password=hash_password(user_data.password),
+            full_name=user_data.full_name,
+            role=Role.REPORTER,  # Default role
+            department=user_data.department,
+            is_active=True,  # Immediately active
+            status=UserStatus.ACTIVE,
+            password_changed_at=datetime.now(timezone.utc),
+            password_expires_at=calculate_password_expiry(),
+            approved_at=datetime.now(timezone.utc),  # Auto-approved
+        )
+    else:
+        # 수동 승인: 관리자 승인 대기
+        new_user = User(
+            username=user_data.username,
+            email=user_data.email,
+            hashed_password=hash_password(user_data.password),
+            full_name=user_data.full_name,
+            role=Role.REPORTER,  # Default role, admin can change during approval
+            department=user_data.department,
+            is_active=False,  # Inactive until approved
+            status=UserStatus.PENDING,
+            password_changed_at=datetime.now(timezone.utc),
+            password_expires_at=calculate_password_expiry(),
+        )
     db.add(new_user)
     await db.flush()
     await db.refresh(new_user)
 
-    # Log registration request
+    # Log registration
     await log_auth_event(
         db=db,
         event_type=AuditEventType.PERMISSION_CHANGE,
         user_id=new_user.id,
         username=new_user.username,
-        result="pending",
-        details={"action": "registration_requested", "email": new_user.email},
+        result="success" if settings.AUTO_APPROVE_REGISTRATION else "pending",
+        details={
+            "action": "registration_auto_approved" if settings.AUTO_APPROVE_REGISTRATION else "registration_requested",
+            "email": new_user.email,
+        },
     )
 
     return UserResponse(

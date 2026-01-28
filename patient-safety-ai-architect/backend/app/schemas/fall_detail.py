@@ -20,12 +20,22 @@ from app.models.fall_detail import (
 class FallDetailBase(BaseModel):
     """Base fall detail schema with shared fields."""
 
-    patient_code: str = Field(..., min_length=1, max_length=50, description="환자 코드 (익명화)")
+    # 환자 정보 (PDF 양식 기준)
+    patient_code: str = Field(..., min_length=1, max_length=50, description="환자등록번호")
+    patient_name: Optional[str] = Field(None, max_length=100, description="환자명")
     patient_age_group: Optional[str] = Field(None, max_length=20, description="연령대")
     patient_gender: Optional[str] = Field(None, max_length=10, description="성별")
+    room_number: Optional[str] = Field(None, max_length=50, description="병실")
+    department_id: Optional[int] = Field(None, description="환자 진료과 ID")
+    physician_id: Optional[int] = Field(None, description="담당 주치의 ID")
+    diagnosis: Optional[str] = Field(None, max_length=500, description="진단명")
 
     pre_fall_risk_level: Optional[FallRiskLevel] = Field(None, description="사고 전 낙상 위험도")
     morse_score: Optional[int] = Field(None, ge=0, le=125, description="Morse Fall Scale 점수 (0-125)")
+
+    # 1-2시간 이내 낙상위험약물
+    immediate_risk_medications: Optional[list[str]] = Field(None, description="1-2시간 이내 투여된 낙상위험약물")
+    immediate_risk_medications_detail: Optional[str] = Field(None, description="1-2시간 약물 상세")
 
     fall_location: FallLocation = Field(..., description="낙상 발생 장소")
     fall_location_detail: Optional[str] = Field(None, max_length=200, description="장소 상세")
@@ -70,12 +80,22 @@ class FallDetailCreate(FallDetailBase):
 class FallDetailUpdate(BaseModel):
     """Schema for updating a fall detail."""
 
+    # 환자 정보
     patient_code: Optional[str] = Field(None, min_length=1, max_length=50)
+    patient_name: Optional[str] = Field(None, max_length=100)
     patient_age_group: Optional[str] = Field(None, max_length=20)
     patient_gender: Optional[str] = Field(None, max_length=10)
+    room_number: Optional[str] = Field(None, max_length=50)
+    department_id: Optional[int] = None
+    physician_id: Optional[int] = None
+    diagnosis: Optional[str] = Field(None, max_length=500)
 
     pre_fall_risk_level: Optional[FallRiskLevel] = None
     morse_score: Optional[int] = Field(None, ge=0, le=125)
+
+    # 1-2시간 이내 낙상위험약물
+    immediate_risk_medications: Optional[list[str]] = None
+    immediate_risk_medications_detail: Optional[str] = None
 
     fall_location: Optional[FallLocation] = None
     fall_location_detail: Optional[str] = Field(None, max_length=200)

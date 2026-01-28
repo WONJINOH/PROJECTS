@@ -130,7 +130,7 @@ def can_close_risks(user: User) -> bool:
 
 
 @router.post(
-    "/",
+    "",
     response_model=RiskResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create a new risk",
@@ -217,7 +217,7 @@ async def create_risk(
 
 
 @router.get(
-    "/",
+    "",
     response_model=RiskListResponse,
     summary="List risks",
 )

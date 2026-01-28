@@ -46,30 +46,44 @@ class InfectionRecord(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # 환자 정보 (익명화)
-    patient_code = Column(String(50), nullable=False, index=True)
-    patient_age_group = Column(String(20), nullable=True)
+    # 환자 정보 (PDF 양식 기준)
+    patient_code = Column(String(50), nullable=False, index=True)  # 환자등록번호
+    patient_name = Column(String(100), nullable=True)  # 환자명
+    patient_age_group = Column(String(20), nullable=True)  # 연령대
+    patient_gender = Column(String(10), nullable=True)  # 성별
+    room_number = Column(String(50), nullable=True)  # 병실
+    department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)  # 환자 진료과
+    physician_id = Column(Integer, ForeignKey("physicians.id"), nullable=True)  # 담당 주치의
+    diagnosis = Column(String(500), nullable=True)  # 진단명
     admission_date = Column(Date, nullable=True)
 
     # 감염 정보
     infection_type = Column(Enum(InfectionType), nullable=False, index=True)
+    infection_site = Column(String(100), nullable=True)  # 감염 부위 (요로, 호흡기, 피부, 혈류 등)
+    infection_site_detail = Column(String(200), nullable=True)  # 감염 부위 상세
     onset_date = Column(Date, nullable=False, index=True)
     diagnosis_date = Column(Date, nullable=True)
-
-    # 의료기기 관련
-    device_related = Column(Boolean, default=False)
-    device_type = Column(String(100), nullable=True)  # 유치도뇨관, 중심정맥관 등
-    device_days = Column(Integer, nullable=True)  # 기구 유치 일수
 
     # 원인균
     pathogen = Column(String(200), nullable=True)
     is_mdro = Column(Boolean, default=False)  # 다제내성균 여부
+    pathogen_culture_result = Column(Text, nullable=True)  # 배양 결과
+
+    # 의료기기 관련
+    device_related = Column(Boolean, default=False)
+    device_type = Column(String(100), nullable=True)  # 유치도뇨관, 중심정맥관 등
+    device_insertion_date = Column(Date, nullable=True)  # 기기 삽입일
+    device_days = Column(Integer, nullable=True)  # 기구 유치 일수
 
     # 부서
     department = Column(String(100), nullable=False, index=True)
 
     # 입원 시 보유 vs 재원 중 발생
     is_hospital_acquired = Column(Boolean, default=True)
+
+    # 치료 정보
+    antibiotic_used = Column(String(300), nullable=True)  # 사용 항생제
+    treatment_notes = Column(Text, nullable=True)  # 치료 내용
 
     # 연결된 사고 보고
     incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=True)

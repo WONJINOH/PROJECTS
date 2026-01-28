@@ -29,6 +29,8 @@ from app.schemas.indicator import (
     IndicatorValueResponse,
     IndicatorValueListResponse,
     IndicatorValueVerifyRequest,
+    IndicatorApproveRequest,
+    IndicatorRejectRequest,
 )
 from app.security.dependencies import get_current_user, require_permission
 from app.security.rbac import Permission
@@ -40,7 +42,7 @@ router = APIRouter()
 # ===== Indicator Config Endpoints =====
 
 @router.get(
-    "/",
+    "",
     response_model=IndicatorConfigListResponse,
     summary="List indicator configurations",
 )
@@ -108,8 +110,43 @@ async def list_indicators(
     )
 
 
+async def _generate_indicator_code(db: AsyncSession, category: IndicatorCategory) -> str:
+    """Generate unique indicator code based on category."""
+    # Category prefix mapping
+    category_prefixes = {
+        IndicatorCategory.PSR: "PSR",
+        IndicatorCategory.PRESSURE_ULCER: "PU",
+        IndicatorCategory.FALL: "FALL",
+        IndicatorCategory.MEDICATION: "MED",
+        IndicatorCategory.RESTRAINT: "REST",
+        IndicatorCategory.INFECTION: "INF",
+        IndicatorCategory.STAFF_SAFETY: "STAF",
+        IndicatorCategory.LAB_TAT: "LAB",
+        IndicatorCategory.COMPOSITE: "COMP",
+    }
+    prefix = category_prefixes.get(category, "IND")
+
+    # Find the max sequence number for this category
+    result = await db.execute(
+        select(func.max(IndicatorConfig.code))
+        .where(IndicatorConfig.code.like(f"{prefix}-%"))
+    )
+    max_code = result.scalar()
+
+    if max_code:
+        # Extract sequence number and increment
+        try:
+            seq = int(max_code.split("-")[1]) + 1
+        except (IndexError, ValueError):
+            seq = 1
+    else:
+        seq = 1
+
+    return f"{prefix}-{seq:03d}"
+
+
 @router.post(
-    "/",
+    "",
     response_model=IndicatorConfigResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create indicator configuration",
@@ -124,24 +161,33 @@ async def create_indicator(
     Create a new indicator configuration.
 
     Required fields:
-    - code: Unique indicator code (e.g., PSR-001)
     - name: Indicator name
     - category: Indicator category
     - unit: Unit of measure
+
+    Optional fields:
+    - code: Unique indicator code (auto-generated if not provided)
     """
+    # Generate code if not provided
+    code = indicator.code
+    if not code:
+        code = await _generate_indicator_code(db, indicator.category)
+    else:
+        code = code.upper()
+
     # Check code uniqueness
     existing = await db.execute(
-        select(IndicatorConfig).where(IndicatorConfig.code == indicator.code)
+        select(IndicatorConfig).where(IndicatorConfig.code == code)
     )
     if existing.scalar_one_or_none():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Indicator with code '{indicator.code}' already exists",
+            detail=f"Indicator with code '{code}' already exists",
         )
 
-    # Create indicator
+    # Create indicator (default to pending approval)
     db_indicator = IndicatorConfig(
-        code=indicator.code,
+        code=code,
         name=indicator.name,
         category=indicator.category,
         description=indicator.description,
@@ -159,7 +205,8 @@ async def create_indicator(
         display_order=indicator.display_order,
         data_source=indicator.data_source,
         auto_calculate=indicator.auto_calculate,
-        status=indicator.status,
+        status=IndicatorStatus.PENDING_APPROVAL,  # New indicators need approval
+        approval_requested_at=datetime.now(timezone.utc),
         created_by_id=current_user.id,
     )
 
@@ -273,6 +320,100 @@ async def delete_indicator(
     # Soft delete - set status to inactive
     indicator.status = IndicatorStatus.INACTIVE
     await db.flush()
+
+
+# ===== Indicator Approval Endpoints =====
+
+@router.post(
+    "/{indicator_id}/approve",
+    response_model=IndicatorConfigResponse,
+    summary="Approve indicator configuration",
+)
+async def approve_indicator(
+    indicator_id: int,
+    request: IndicatorApproveRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    _: Annotated[None, Depends(require_permission(Permission.MANAGE_INDICATORS))],
+    db: AsyncSession = Depends(get_db),
+) -> IndicatorConfigResponse:
+    """
+    Approve a pending indicator configuration.
+
+    Only QPS_STAFF or MASTER can approve indicators.
+    """
+    result = await db.execute(
+        select(IndicatorConfig).where(IndicatorConfig.id == indicator_id)
+    )
+    indicator = result.scalar_one_or_none()
+
+    if not indicator:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Indicator with id {indicator_id} not found",
+        )
+
+    if indicator.status != IndicatorStatus.PENDING_APPROVAL:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Indicator is not pending approval (current status: {indicator.status.value})",
+        )
+
+    # Approve
+    indicator.status = IndicatorStatus.ACTIVE
+    indicator.approved_at = datetime.now(timezone.utc)
+    indicator.approved_by_id = current_user.id
+    indicator.rejection_reason = None  # Clear any previous rejection
+
+    await db.flush()
+    await db.refresh(indicator)
+
+    return IndicatorConfigResponse.model_validate(indicator)
+
+
+@router.post(
+    "/{indicator_id}/reject",
+    response_model=IndicatorConfigResponse,
+    summary="Reject indicator configuration",
+)
+async def reject_indicator(
+    indicator_id: int,
+    request: IndicatorRejectRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    _: Annotated[None, Depends(require_permission(Permission.MANAGE_INDICATORS))],
+    db: AsyncSession = Depends(get_db),
+) -> IndicatorConfigResponse:
+    """
+    Reject a pending indicator configuration.
+
+    Only QPS_STAFF or MASTER can reject indicators.
+    """
+    result = await db.execute(
+        select(IndicatorConfig).where(IndicatorConfig.id == indicator_id)
+    )
+    indicator = result.scalar_one_or_none()
+
+    if not indicator:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Indicator with id {indicator_id} not found",
+        )
+
+    if indicator.status != IndicatorStatus.PENDING_APPROVAL:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Indicator is not pending approval (current status: {indicator.status.value})",
+        )
+
+    # Reject
+    indicator.status = IndicatorStatus.REJECTED
+    indicator.rejection_reason = request.reason
+    indicator.approved_at = None
+    indicator.approved_by_id = None
+
+    await db.flush()
+    await db.refresh(indicator)
+
+    return IndicatorConfigResponse.model_validate(indicator)
 
 
 # ===== Indicator Value Endpoints =====

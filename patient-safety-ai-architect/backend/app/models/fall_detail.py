@@ -128,10 +128,18 @@ class FallDetail(Base):
     # 기본 사고 연결
     incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=False)
 
-    # 환자 정보 (익명화)
-    patient_code = Column(String(50), nullable=False, index=True)
+    # ===== 환자 정보 (PDF 양식 기준) =====
+    # 기존 필드 (필드명 변경: patient_code → patient_registration_no 개념적)
+    patient_code = Column(String(50), nullable=False, index=True)  # 환자등록번호
     patient_age_group = Column(String(20), nullable=True)
     patient_gender = Column(String(10), nullable=True)
+
+    # 신규 환자정보 필드
+    patient_name = Column(String(100), nullable=True)  # 환자명
+    room_number = Column(String(50), nullable=True)  # 병실
+    department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)  # 환자 진료과
+    physician_id = Column(Integer, ForeignKey("physicians.id"), nullable=True)  # 담당 주치의
+    diagnosis = Column(String(500), nullable=True)  # 진단명
 
     # 낙상 위험도 (사고 전 평가)
     pre_fall_risk_level = Column(Enum(FallRiskLevel), nullable=True)
@@ -153,9 +161,14 @@ class FallDetail(Base):
     # 예: ["medication", "cognitive_impairment", "visual_impairment", "history_of_fall"]
     risk_factors = Column(JSON, nullable=True)
 
-    # 관련 투약 (PSR I항) - JSON 배열로 저장
+    # 관련 투약 (PSR I항) - JSON 배열로 저장 (24시간 이내)
     # 예: ["sedative", "diuretic", "antihypertensive", "hypoglycemic"]
     related_medications = Column(JSON, nullable=True)
+
+    # 1-2시간 이내 투여된 낙상위험약물 (신규 필드)
+    # 예: ["sedative", "analgesic", "muscle_relaxant"]
+    immediate_risk_medications = Column(JSON, nullable=True)
+    immediate_risk_medications_detail = Column(Text, nullable=True)
 
     # 낙상 유형 (PSR I항)
     fall_type = Column(Enum(FallType), nullable=True, index=True)

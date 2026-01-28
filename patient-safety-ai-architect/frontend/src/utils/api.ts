@@ -42,19 +42,19 @@ api.interceptors.response.use(
 )
 
 // API functions
-// Note: Trailing slashes are required to avoid 307 redirects that lose auth headers
+// Note: No trailing slashes - FastAPI redirects cause auth header loss
 export const incidentApi = {
   list: (params?: { skip?: number; limit?: number }) =>
-    api.get('/api/incidents/', { params }),
+    api.get('/api/incidents', { params }),
 
   get: (id: number) =>
-    api.get(`/api/incidents/${id}/`),
+    api.get(`/api/incidents/${id}`),
 
   create: (data: CreateIncidentData) =>
-    api.post('/api/incidents/', data),
+    api.post('/api/incidents', data),
 
   update: (id: number, data: Partial<CreateIncidentData>) =>
-    api.put(`/api/incidents/${id}/`, data),
+    api.put(`/api/incidents/${id}`, data),
 }
 
 export const attachmentApi = {
@@ -101,7 +101,16 @@ export interface CreateIncidentData {
   reporter_name?: string
   root_cause?: string
   improvements?: string
-  department?: string
+  // 환자 정보 (필수)
+  patient_registration_no: string
+  patient_name: string
+  patient_ward: string
+  room_number: string
+  patient_gender: string
+  patient_age: number
+  patient_department_id: number
+  patient_physician_id: number
+  diagnosis?: string
 }
 
 import type {
@@ -109,10 +118,14 @@ import type {
   CreateIndicatorValueData,
   CreateFallDetailData,
   CreateMedicationDetailData,
+  CreateInfectionDetailData,
+  CreatePressureUlcerDetailData,
   CreateActionData,
   CreateRiskData,
   UpdateRiskData,
   CreateRiskAssessmentData,
+  CreateDepartmentData,
+  CreatePhysicianData,
   IndicatorCategory,
   IndicatorStatusType,
   ActionStatus,
@@ -140,6 +153,13 @@ export const indicatorApi = {
     api.put(`/api/indicators/${id}`, data),
 
   delete: (id: number) => api.delete(`/api/indicators/${id}`),
+
+  // Approval operations
+  approve: (indicatorId: number, comment?: string) =>
+    api.post(`/api/indicators/${indicatorId}/approve`, { comment }),
+
+  reject: (indicatorId: number, reason: string) =>
+    api.post(`/api/indicators/${indicatorId}/reject`, { reason }),
 
   // Value operations
   listValues: (
@@ -197,6 +217,42 @@ export const medicationDetailApi = {
 
   delete: (id: number) =>
     api.delete(`/api/medication-details/${id}`),
+}
+
+// Infection Detail API
+export const infectionDetailApi = {
+  getByIncident: (incidentId: number) =>
+    api.get(`/api/infection-details/incident/${incidentId}`),
+
+  get: (id: number) =>
+    api.get(`/api/infection-details/${id}`),
+
+  create: (data: CreateInfectionDetailData) =>
+    api.post('/api/infection-details', data),
+
+  update: (id: number, data: Partial<CreateInfectionDetailData>) =>
+    api.put(`/api/infection-details/${id}`, data),
+
+  delete: (id: number) =>
+    api.delete(`/api/infection-details/${id}`),
+}
+
+// Pressure Ulcer Detail API
+export const pressureUlcerDetailApi = {
+  getByIncident: (incidentId: number) =>
+    api.get(`/api/pressure-ulcer-details/incident/${incidentId}`),
+
+  get: (id: number) =>
+    api.get(`/api/pressure-ulcer-details/${id}`),
+
+  create: (data: CreatePressureUlcerDetailData) =>
+    api.post('/api/pressure-ulcer-details', data),
+
+  update: (id: number, data: Partial<CreatePressureUlcerDetailData>) =>
+    api.put(`/api/pressure-ulcer-details/${id}`, data),
+
+  delete: (id: number) =>
+    api.delete(`/api/pressure-ulcer-details/${id}`),
 }
 
 // Action API (CAPA)
@@ -289,4 +345,116 @@ export const dashboardApi = {
 
   getPressureUlcer: (params?: { year?: number; month?: number }) =>
     api.get('/api/dashboard/pressure-ulcer', { params }),
+}
+
+// Lookup API (진료과/주치의)
+export const lookupApi = {
+  // Department
+  listDepartments: (activeOnly: boolean = true) =>
+    api.get('/api/lookup/departments', { params: { active_only: activeOnly } }),
+
+  getDepartment: (id: number) =>
+    api.get(`/api/lookup/departments/${id}`),
+
+  createDepartment: (data: CreateDepartmentData) =>
+    api.post('/api/lookup/departments', data),
+
+  updateDepartment: (id: number, data: Partial<CreateDepartmentData> & { is_active?: boolean }) =>
+    api.put(`/api/lookup/departments/${id}`, data),
+
+  deleteDepartment: (id: number) =>
+    api.delete(`/api/lookup/departments/${id}`),
+
+  // Physician
+  listPhysicians: (params?: { department_id?: number; active_only?: boolean }) =>
+    api.get('/api/lookup/physicians', { params }),
+
+  getPhysician: (id: number) =>
+    api.get(`/api/lookup/physicians/${id}`),
+
+  createPhysician: (data: CreatePhysicianData) =>
+    api.post('/api/lookup/physicians', data),
+
+  updatePhysician: (id: number, data: Partial<CreatePhysicianData> & { is_active?: boolean }) =>
+    api.put(`/api/lookup/physicians/${id}`, data),
+
+  deletePhysician: (id: number) =>
+    api.delete(`/api/lookup/physicians/${id}`),
+}
+
+// Pressure Ulcer Management API (Feature 12)
+export const pressureUlcerManagementApi = {
+  // Patient list
+  listPatients: (params?: {
+    active_only?: boolean
+    department?: string
+    origin?: string
+    skip?: number
+    limit?: number
+  }) => api.get('/api/pressure-ulcers/patients', { params }),
+
+  // Patient detail
+  getPatient: (recordId: number) =>
+    api.get(`/api/pressure-ulcers/patients/${recordId}`),
+
+  // Create new pressure ulcer record (욕창발생보고서)
+  createRecord: (data: {
+    patient_code: string
+    patient_name: string
+    patient_gender: string
+    room_number: string
+    patient_age_group?: string
+    admission_date?: string
+    location: string
+    location_detail?: string
+    origin: string
+    discovery_date: string
+    grade: string
+    push_length_width: number
+    push_exudate: number
+    push_tissue_type: number
+    length_cm?: number
+    width_cm?: number
+    depth_cm?: number
+    department: string
+    risk_factors?: string
+    treatment_plan?: string
+    note?: string
+    fmea_severity?: number
+    fmea_probability?: number
+    fmea_detectability?: number
+    reporter_name?: string
+  }) => api.post('/api/pressure-ulcers/patients', data),
+
+  // Add PUSH assessment
+  createAssessment: (recordId: number, data: {
+    assessment_date: string
+    grade: string
+    push_length_width: number
+    push_exudate: number
+    push_tissue_type: number
+    length_cm?: number
+    width_cm?: number
+    depth_cm?: number
+    note?: string
+  }) => api.post(`/api/pressure-ulcers/patients/${recordId}/assessments`, data),
+
+  // Close ulcer record
+  closeUlcer: (recordId: number, data: {
+    end_date: string
+    end_reason: string
+    end_reason_detail?: string
+  }) => api.post(`/api/pressure-ulcers/patients/${recordId}/close`, data),
+
+  // Trend data
+  getTrend: (recordId: number) =>
+    api.get(`/api/pressure-ulcers/patients/${recordId}/trend`),
+
+  // Statistics
+  getStats: (params?: { department?: string }) =>
+    api.get('/api/pressure-ulcers/stats', { params }),
+
+  // Feature 13: Manual improvement rate calculation
+  calculateImprovementRate: (data: { year: number; month: number }) =>
+    api.post('/api/pressure-ulcers/improvement-rate/calculate', data),
 }

@@ -24,6 +24,8 @@ const statusColors: Record<IndicatorStatusType, string> = {
   active: 'bg-green-100 text-green-800',
   inactive: 'bg-gray-100 text-gray-800',
   planned: 'bg-blue-100 text-blue-800',
+  pending_approval: 'bg-yellow-100 text-yellow-800',
+  rejected: 'bg-red-100 text-red-800',
 }
 
 // Category order for display
@@ -168,12 +170,14 @@ export default function IndicatorList() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as IndicatorStatusType | '')}
-            className="input-field w-full sm:w-32"
+            className="input-field w-full sm:w-36"
           >
             <option value="">모든 상태</option>
+            <option value="pending_approval">승인 대기</option>
             <option value="active">활성</option>
             <option value="inactive">비활성</option>
             <option value="planned">예정</option>
+            <option value="rejected">반려됨</option>
           </select>
         </div>
       </div>

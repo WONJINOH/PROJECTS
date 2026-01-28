@@ -112,7 +112,7 @@ def build_access_filter(user: User):
 
 
 @router.post(
-    "/",
+    "",
     response_model=IncidentResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create new incident report",
@@ -135,26 +135,66 @@ async def create_incident(
     - reported_at: REQUIRED - When this report was created
     - reporter_name: Required except for NEAR_MISS grade
     """
+    # Generate incident_number (YYYYMMDD-NN format)
+    today = datetime.now(timezone.utc).strftime("%Y%m%d")
+    count_result = await db.execute(
+        select(func.count(Incident.id))
+        .where(Incident.incident_number.like(f"{today}-%"))
+    )
+    count = count_result.scalar() or 0
+    incident_number = f"{today}-{(count + 1):02d}"
+
     # Create incident record
     incident = Incident(
+        incident_number=incident_number,
         category=incident_data.category,
+        category_other_detail=incident_data.category_other_detail,
         grade=incident_data.grade,
         occurred_at=incident_data.occurred_at,
         location=incident_data.location,
+        location_type=incident_data.location_type,
+        location_detail=incident_data.location_detail,
         description=incident_data.description,
         immediate_action=incident_data.immediate_action,
         reported_at=incident_data.reported_at,
         reporter_name=incident_data.reporter_name,
         root_cause=incident_data.root_cause,
         improvements=incident_data.improvements,
-        department=incident_data.department or current_user.department,
+        # 환자 정보
+        patient_registration_no=incident_data.patient_registration_no,
+        patient_name=incident_data.patient_name,
+        patient_ward=incident_data.patient_ward,
+        room_number=incident_data.room_number,
+        patient_gender=incident_data.patient_gender,
+        patient_age=incident_data.patient_age,
+        patient_department_id=incident_data.patient_department_id,
+        patient_physician_id=incident_data.patient_physician_id,
+        diagnosis=incident_data.diagnosis,
+        # 개선활동 및 요인 분석
+        improvement_types=incident_data.improvement_types,
+        policy_factor=incident_data.policy_factor,
+        policy_factor_detail=incident_data.policy_factor_detail,
+        management_factors=incident_data.management_factors,
+        management_factors_detail=incident_data.management_factors_detail,
+        behavior_type=incident_data.behavior_type,
+        behavior_type_rationale=incident_data.behavior_type_rationale,
         reporter_id=current_user.id,
         status="draft",
     )
 
     db.add(incident)
     await db.flush()
-    await db.refresh(incident)
+
+    # Refresh with eager loading for patient department/physician names
+    result = await db.execute(
+        select(Incident)
+        .where(Incident.id == incident.id)
+        .options(
+            selectinload(Incident.patient_department),
+            selectinload(Incident.patient_physician),
+        )
+    )
+    incident = result.scalar_one()
 
     # Log audit event
     await log_incident_event(
@@ -173,7 +213,7 @@ async def create_incident(
 
 
 @router.get(
-    "/",
+    "",
     response_model=IncidentListResponse,
     summary="List incidents",
 )
@@ -185,7 +225,7 @@ async def list_incidents(
     category: Optional[IncidentCategory] = None,
     grade: Optional[IncidentGrade] = None,
     status_filter: Optional[str] = Query(None, alias="status"),
-    department: Optional[str] = None,
+    patient_ward: Optional[str] = None,
 ) -> IncidentListResponse:
     """
     List incidents visible to the current user.
@@ -206,18 +246,22 @@ async def list_incidents(
         filters.append(Incident.grade == grade)
     if status_filter:
         filters.append(Incident.status == status_filter)
-    if department and current_user.role in [Role.VICE_CHAIR, Role.DIRECTOR, Role.MASTER]:
-        filters.append(Incident.department == department)
+    if patient_ward and current_user.role in [Role.VICE_CHAIR, Role.DIRECTOR, Role.MASTER]:
+        filters.append(Incident.patient_ward == patient_ward)
 
     # Count total
     count_query = select(func.count(Incident.id)).where(and_(*filters))
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
-    # Get items
+    # Get items with eager loading for patient department/physician names
     query = (
         select(Incident)
         .where(and_(*filters))
+        .options(
+            selectinload(Incident.patient_department),
+            selectinload(Incident.patient_physician),
+        )
         .order_by(Incident.created_at.desc())
         .offset(skip)
         .limit(limit)
@@ -249,10 +293,13 @@ async def get_incident(
     Access is verified at row level.
     Audit log entry created for each access.
     """
-    # Get incident
+    # Get incident with eager loading for patient department/physician names
     result = await db.execute(
-        select(Incident).where(
-            and_(Incident.id == incident_id, Incident.is_deleted == False)
+        select(Incident)
+        .where(and_(Incident.id == incident_id, Incident.is_deleted == False))
+        .options(
+            selectinload(Incident.patient_department),
+            selectinload(Incident.patient_physician),
         )
     )
     incident = result.scalar_one_or_none()
@@ -359,6 +406,18 @@ async def update_incident(
             result="success",
             details={"changes": changes},
         )
+
+    # Refresh with eager loading for patient department/physician names
+    await db.flush()
+    result = await db.execute(
+        select(Incident)
+        .where(Incident.id == incident_id)
+        .options(
+            selectinload(Incident.patient_department),
+            selectinload(Incident.patient_physician),
+        )
+    )
+    incident = result.scalar_one()
 
     return IncidentResponse.model_validate(incident)
 

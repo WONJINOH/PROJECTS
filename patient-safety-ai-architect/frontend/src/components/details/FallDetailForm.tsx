@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -8,35 +8,41 @@ import {
   FALL_INJURY_LABELS,
   FALL_LOCATION_LABELS,
   FALL_CAUSE_LABELS,
+  FALL_RELATED_MEDICATION_OPTIONS,
+  FALL_IMMEDIATE_MEDICATION_OPTIONS,
   FallInjuryLevel,
   FallLocation,
   FallCause,
   FallRiskLevel,
 } from '@/types'
 
-// Validation schema
+// Validation schema (환자 정보는 Incident 공통 폼에서 입력)
 const fallDetailSchema = z.object({
-  patient_code: z.string().min(1, '환자 코드를 입력해주세요').max(50),
-  patient_age_group: z.string().optional(),
-  patient_gender: z.enum(['male', 'female', 'other']).optional(),
+  // 낙상 위험도
   pre_fall_risk_level: z.enum(['low', 'moderate', 'high']).optional(),
   morse_score: z.number().min(0).max(125).optional().nullable(),
+  // 관련 투약
+  related_medications: z.array(z.string()).optional(),
+  immediate_risk_medications: z.array(z.string()).optional(),
+  immediate_risk_medications_detail: z.string().optional(),
+  // 낙상 상황
   fall_location: z.enum(['bed', 'bathroom', 'hallway', 'wheelchair', 'chair', 'rehabilitation', 'other']),
   fall_location_detail: z.string().optional(),
   fall_cause: z.enum(['slip', 'trip', 'loss_of_balance', 'fainting', 'weakness', 'cognitive', 'medication', 'environment', 'other']),
   fall_cause_detail: z.string().optional(),
   occurred_hour: z.number().min(0).max(23).optional().nullable(),
   shift: z.enum(['day', 'evening', 'night']).optional(),
+  // 손상
   injury_level: z.enum(['none', 'minor', 'moderate', 'major', 'death']),
   injury_description: z.string().optional(),
   activity_at_fall: z.string().optional(),
+  // 예방조치
   was_supervised: z.boolean(),
   had_fall_prevention: z.boolean(),
   department: z.string().min(1, '부서를 입력해주세요').max(100),
   is_recurrence: z.boolean(),
   previous_fall_count: z.number().min(0).optional(),
 }).refine((data) => {
-  // injury_description required when injury_level is not 'none'
   if (data.injury_level !== 'none' && !data.injury_description) {
     return false
   }
@@ -52,11 +58,12 @@ interface Props {
   incidentId: number
   existingDetail?: {
     id: number
-    patient_code: string
-    patient_age_group?: string
-    patient_gender?: string
+    // 환자 정보는 Incident에서 관리 (공통 폼)
     pre_fall_risk_level?: string
     morse_score?: number
+    related_medications?: string[]
+    immediate_risk_medications?: string[]
+    immediate_risk_medications_detail?: string
     fall_location: string
     fall_location_detail?: string
     fall_cause: string
@@ -75,15 +82,6 @@ interface Props {
   onClose: () => void
   onSuccess: () => void
 }
-
-const ageGroups = [
-  { value: '', label: '선택하세요' },
-  { value: '0-17', label: '소아 (0-17세)' },
-  { value: '18-64', label: '성인 (18-64세)' },
-  { value: '65-74', label: '초기 노인 (65-74세)' },
-  { value: '75-84', label: '중기 노인 (75-84세)' },
-  { value: '85+', label: '후기 노인 (85세 이상)' },
-]
 
 const riskLevels = [
   { value: '', label: '선택하세요' },
@@ -107,16 +105,18 @@ export default function FallDetailForm({ incidentId, existingDetail, onClose, on
     register,
     handleSubmit,
     watch,
+    control,
+    setValue,
     formState: { errors },
   } = useForm<FallDetailFormData>({
     resolver: zodResolver(fallDetailSchema),
     defaultValues: existingDetail
       ? {
-          patient_code: existingDetail.patient_code,
-          patient_age_group: existingDetail.patient_age_group || '',
-          patient_gender: existingDetail.patient_gender as 'male' | 'female' | 'other' | undefined,
           pre_fall_risk_level: existingDetail.pre_fall_risk_level as FallRiskLevel | undefined,
           morse_score: existingDetail.morse_score ?? null,
+          related_medications: existingDetail.related_medications || [],
+          immediate_risk_medications: existingDetail.immediate_risk_medications || [],
+          immediate_risk_medications_detail: existingDetail.immediate_risk_medications_detail || '',
           fall_location: existingDetail.fall_location as FallLocation,
           fall_location_detail: existingDetail.fall_location_detail || '',
           fall_cause: existingDetail.fall_cause as FallCause,
@@ -138,16 +138,20 @@ export default function FallDetailForm({ incidentId, existingDetail, onClose, on
           is_recurrence: false,
           previous_fall_count: 0,
           injury_level: 'none',
+          related_medications: [],
+          immediate_risk_medications: [],
         },
   })
 
   const injuryLevel = watch('injury_level')
   const isRecurrence = watch('is_recurrence')
+  const selectedImmediateMeds = watch('immediate_risk_medications') || []
 
   const createMutation = useMutation({
     mutationFn: (data: FallDetailFormData) =>
       fallDetailApi.create({
         incident_id: incidentId,
+        patient_code: '', // Placeholder - 환자 정보는 Incident에서 관리
         ...data,
         morse_score: data.morse_score ?? undefined,
         occurred_hour: data.occurred_hour ?? undefined,
@@ -189,6 +193,25 @@ export default function FallDetailForm({ incidentId, existingDetail, onClose, on
 
   const isPending = createMutation.isPending || updateMutation.isPending
 
+  // Checkbox change handlers
+  const handleRelatedMedicationChange = (value: string, checked: boolean) => {
+    const current = watch('related_medications') || []
+    if (checked) {
+      setValue('related_medications', [...current, value])
+    } else {
+      setValue('related_medications', current.filter(v => v !== value))
+    }
+  }
+
+  const handleImmediateMedicationChange = (value: string, checked: boolean) => {
+    const current = watch('immediate_risk_medications') || []
+    if (checked) {
+      setValue('immediate_risk_medications', [...current, value])
+    } else {
+      setValue('immediate_risk_medications', current.filter(v => v !== value))
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -205,41 +228,22 @@ export default function FallDetailForm({ incidentId, existingDetail, onClose, on
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Patient Info */}
+        {/* 환자 정보 안내 */}
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-800">
+            환자 정보는 사고 보고(공통 폼)에서 입력합니다. 낙상 상세 정보만 아래에 입력해주세요.
+          </p>
+        </div>
+
+        {/* 부서 입력 */}
         <div className="border rounded-lg p-4 space-y-4">
-          <h4 className="font-medium text-gray-900">환자 정보</h4>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">환자 코드 *</label>
-              <input {...register('patient_code')} className="input-field mt-1" placeholder="P-001" />
-              {errors.patient_code && (
-                <p className="mt-1 text-sm text-red-600">{errors.patient_code.message}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">부서 *</label>
-              <input {...register('department')} className="input-field mt-1" placeholder="내과 병동" />
-              {errors.department && (
-                <p className="mt-1 text-sm text-red-600">{errors.department.message}</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">연령대</label>
-              <select {...register('patient_age_group')} className="input-field mt-1">
-                {ageGroups.map((g) => (
-                  <option key={g.value} value={g.value}>{g.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">성별</label>
-              <select {...register('patient_gender')} className="input-field mt-1">
-                <option value="">선택하세요</option>
-                <option value="male">남성</option>
-                <option value="female">여성</option>
-                <option value="other">기타</option>
-              </select>
-            </div>
+          <h4 className="font-medium text-gray-900">발생 부서</h4>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">부서 *</label>
+            <input {...register('department')} className="input-field mt-1" placeholder="발생 부서" />
+            {errors.department && (
+              <p className="mt-1 text-sm text-red-600">{errors.department.message}</p>
+            )}
           </div>
         </div>
 
@@ -267,6 +271,66 @@ export default function FallDetailForm({ incidentId, existingDetail, onClose, on
               />
             </div>
           </div>
+        </div>
+
+        {/* Related Medications - 24시간 이내 */}
+        <div className="border rounded-lg p-4 space-y-4">
+          <h4 className="font-medium text-gray-900">24시간 이내 투여된 낙상유발약물</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {FALL_RELATED_MEDICATION_OPTIONS.map((option) => (
+              <Controller
+                key={option.value}
+                name="related_medications"
+                control={control}
+                render={({ field }) => (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300"
+                      checked={field.value?.includes(option.value) || false}
+                      onChange={(e) => handleRelatedMedicationChange(option.value, e.target.checked)}
+                    />
+                    <span className="text-sm text-gray-700">{option.label}</span>
+                  </label>
+                )}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Immediate Risk Medications - 1-2시간 이내 */}
+        <div className="border rounded-lg p-4 space-y-4">
+          <h4 className="font-medium text-gray-900">1-2시간 이내 투여된 낙상위험약물</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {FALL_IMMEDIATE_MEDICATION_OPTIONS.map((option) => (
+              <Controller
+                key={option.value}
+                name="immediate_risk_medications"
+                control={control}
+                render={({ field }) => (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300"
+                      checked={field.value?.includes(option.value) || false}
+                      onChange={(e) => handleImmediateMedicationChange(option.value, e.target.checked)}
+                    />
+                    <span className="text-sm text-gray-700">{option.label}</span>
+                  </label>
+                )}
+              />
+            ))}
+          </div>
+          {selectedImmediateMeds.includes('other') && (
+            <div className="mt-3">
+              <label className="block text-sm font-medium text-gray-700">기타 약물 상세</label>
+              <input
+                {...register('immediate_risk_medications_detail')}
+                className="input-field mt-1"
+                placeholder="기타 약물명 입력"
+              />
+            </div>
+          )}
         </div>
 
         {/* Fall Details */}

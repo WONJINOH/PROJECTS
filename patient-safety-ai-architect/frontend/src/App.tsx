@@ -17,6 +17,11 @@ import RiskDetail from '@/pages/RiskDetail'
 import RiskMatrix from '@/pages/RiskMatrix'
 import AccessLog from '@/pages/AccessLog'
 import UserManagement from '@/pages/UserManagement'
+import DepartmentManagement from '@/pages/admin/DepartmentManagement'
+import PhysicianManagement from '@/pages/admin/PhysicianManagement'
+import PressureUlcerManagement from '@/pages/PressureUlcerManagement'
+import PressureUlcerPatientDetail from '@/pages/PressureUlcerPatientDetail'
+import PressureUlcerOccurrenceReport from '@/pages/PressureUlcerOccurrenceReport'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth()
@@ -72,6 +77,11 @@ function App() {
         <Route path="risks/:id/edit" element={<RiskForm />} />
         <Route path="access-log" element={<AccessLog />} />
         <Route path="users" element={<UserManagement />} />
+        <Route path="admin/departments" element={<DepartmentManagement />} />
+        <Route path="admin/physicians" element={<PhysicianManagement />} />
+        <Route path="pressure-ulcer-management" element={<PressureUlcerManagement />} />
+        <Route path="pressure-ulcer-management/new" element={<PressureUlcerOccurrenceReport />} />
+        <Route path="pressure-ulcer-management/:id" element={<PressureUlcerPatientDetail />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     # === Redis (Optional - for caching/sessions) ===
     REDIS_URL: Optional[str] = None
 
+    # === User Registration ===
+    AUTO_APPROVE_REGISTRATION: bool = True  # True: 신규 사용자 자동 승인, False: 관리자 승인 필요
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

@@ -12,8 +12,11 @@ import { INDICATOR_CATEGORY_LABELS } from '@/types'
 const indicatorSchema = z.object({
   code: z
     .string()
-    .min(1, '코드를 입력해주세요')
-    .regex(/^[A-Z]{2,5}-\d{3}$/, '코드 형식: PSR-001, PU-001 등'),
+    .optional()
+    .refine(
+      (val) => !val || /^[A-Z]{2,5}-\d{3}$/.test(val),
+      '코드 형식: PSR-001, PU-001 등'
+    ),
   name: z.string().min(1, '지표명을 입력해주세요').max(200),
   category: z.enum([
     'psr',
@@ -78,9 +81,11 @@ const thresholdDirections = [
 ]
 
 const statusOptions = [
+  { value: 'pending_approval', label: '승인 대기' },
   { value: 'active', label: '활성' },
   { value: 'inactive', label: '비활성' },
   { value: 'planned', label: '예정' },
+  { value: 'rejected', label: '반려됨' },
 ]
 
 export default function IndicatorForm() {
@@ -137,7 +142,7 @@ export default function IndicatorForm() {
   const createMutation = useMutation({
     mutationFn: (data: CreateIndicatorData) => indicatorApi.create(data),
     onSuccess: () => {
-      alert('지표가 생성되었습니다.')
+      alert('지표가 생성되었습니다.\n\n* 새 지표는 QPS 담당자의 승인 후 활성화됩니다.')
       navigate('/indicators')
     },
     onError: () => {
@@ -160,7 +165,7 @@ export default function IndicatorForm() {
   const onSubmit = (data: IndicatorFormData) => {
     // Clean up empty strings to undefined
     const cleanedData: CreateIndicatorData = {
-      code: data.code,
+      code: data.code || undefined,  // Optional - backend will auto-generate if empty
       name: data.name,
       category: data.category,
       unit: data.unit,
@@ -228,17 +233,17 @@ export default function IndicatorForm() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Code */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">코드 *</label>
+              <label className="block text-sm font-medium text-gray-700">코드</label>
               <input
                 {...register('code')}
                 type="text"
-                placeholder="PSR-001"
+                placeholder="PSR-001 (미입력시 자동 생성)"
                 className="input-field mt-1 font-mono"
               />
               {errors.code && (
                 <p className="mt-1 text-sm text-red-600">{errors.code.message}</p>
               )}
-              <p className="mt-1 text-xs text-gray-500">형식: 대문자2~5자-숫자3자리</p>
+              <p className="mt-1 text-xs text-gray-500">선택사항 - 미입력시 카테고리 기반 자동 생성</p>
             </div>
 
             {/* Category */}

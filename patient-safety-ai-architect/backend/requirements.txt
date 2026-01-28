@@ -53,3 +53,6 @@ bandit==1.7.7                     # SAST
 # === Code Quality ===
 ruff==0.2.1                       # Linter + formatter
 mypy==1.8.0                       # Type checking
+
+# === Task Scheduling ===
+apscheduler==3.10.4               # Background job scheduler

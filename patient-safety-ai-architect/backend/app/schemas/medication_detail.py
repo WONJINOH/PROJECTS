@@ -20,8 +20,15 @@ from app.models.medication_detail import (
 class MedicationDetailBase(BaseModel):
     """Base medication detail schema with shared fields."""
 
-    patient_code: str = Field(..., min_length=1, max_length=50, description="환자 코드 (익명화)")
+    # 환자 정보 (PDF 양식 기준)
+    patient_code: str = Field(..., min_length=1, max_length=50, description="환자등록번호")
+    patient_name: Optional[str] = Field(None, max_length=100, description="환자명")
     patient_age_group: Optional[str] = Field(None, max_length=20, description="연령대")
+    patient_gender: Optional[str] = Field(None, max_length=10, description="성별")
+    room_number: Optional[str] = Field(None, max_length=50, description="병실")
+    department_id: Optional[int] = Field(None, description="환자 진료과 ID")
+    physician_id: Optional[int] = Field(None, description="담당 주치의 ID")
+    diagnosis: Optional[str] = Field(None, max_length=500, description="진단명")
 
     error_type: MedicationErrorType = Field(..., description="투약 오류 유형")
     error_stage: MedicationErrorStage = Field(..., description="오류 발견 단계")
@@ -40,6 +47,7 @@ class MedicationDetailBase(BaseModel):
 
     discovered_by_role: Optional[str] = Field(None, max_length=50, description="발견자 역할")
     discovery_method: Optional[str] = Field(None, max_length=100, description="발견 방법")
+    discovery_method_detail: Optional[str] = Field(None, max_length=200, description="발견 방법 상세 (기타 선택 시)")
 
     department: str = Field(..., min_length=1, max_length=100, description="부서")
 
@@ -65,8 +73,15 @@ class MedicationDetailCreate(MedicationDetailBase):
 class MedicationDetailUpdate(BaseModel):
     """Schema for updating a medication detail."""
 
+    # 환자 정보
     patient_code: Optional[str] = Field(None, min_length=1, max_length=50)
+    patient_name: Optional[str] = Field(None, max_length=100)
     patient_age_group: Optional[str] = Field(None, max_length=20)
+    patient_gender: Optional[str] = Field(None, max_length=10)
+    room_number: Optional[str] = Field(None, max_length=50)
+    department_id: Optional[int] = None
+    physician_id: Optional[int] = None
+    diagnosis: Optional[str] = Field(None, max_length=500)
 
     error_type: Optional[MedicationErrorType] = None
     error_stage: Optional[MedicationErrorStage] = None
@@ -85,6 +100,7 @@ class MedicationDetailUpdate(BaseModel):
 
     discovered_by_role: Optional[str] = Field(None, max_length=50)
     discovery_method: Optional[str] = Field(None, max_length=100)
+    discovery_method_detail: Optional[str] = Field(None, max_length=200)
 
     department: Optional[str] = Field(None, min_length=1, max_length=100)
 

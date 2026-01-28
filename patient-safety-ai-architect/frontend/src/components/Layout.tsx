@@ -13,6 +13,8 @@ import {
   HeartPulse,
   Mail,
   ChevronRight,
+  Building2,
+  UserCog,
 } from 'lucide-react'
 import type { UserRole } from '@/types'
 
@@ -56,9 +58,27 @@ const navigation: NavItem[] = [
     allowedRoles: ['qps_staff', 'vice_chair', 'director', 'master']
   },
   {
+    name: '욕창 관리',
+    href: '/pressure-ulcer-management',
+    icon: HeartPulse,
+    allowedRoles: ['qps_staff', 'vice_chair', 'director', 'master']
+  },
+  {
     name: '사용자 관리',
     href: '/users',
     icon: Users,
+    allowedRoles: ['admin', 'master']
+  },
+  {
+    name: '진료과 관리',
+    href: '/admin/departments',
+    icon: Building2,
+    allowedRoles: ['admin', 'master']
+  },
+  {
+    name: '주치의 관리',
+    href: '/admin/physicians',
+    icon: UserCog,
     allowedRoles: ['admin', 'master']
   },
   {

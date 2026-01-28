@@ -11,18 +11,22 @@ import {
   Clock,
   Loader2,
   AlertCircle,
+  AlertTriangle,
   Activity,
   Pill,
+  HeartCrack,
   ThumbsUp,
   ThumbsDown,
   Edit3,
   Plus,
 } from 'lucide-react'
-import { incidentApi, approvalApi, fallDetailApi, medicationDetailApi } from '@/utils/api'
+import { incidentApi, approvalApi, fallDetailApi, medicationDetailApi, infectionDetailApi, pressureUlcerDetailApi } from '@/utils/api'
 import { useAuth } from '@/hooks/useAuth'
 import ActionList from '@/components/actions/ActionList'
 import FallDetailForm from '@/components/details/FallDetailForm'
 import MedicationDetailForm from '@/components/details/MedicationDetailForm'
+import InfectionDetailForm from '@/components/details/InfectionDetailForm'
+import PressureUlcerDetailForm from '@/components/details/PressureUlcerDetailForm'
 import type {
   IncidentCategory,
   IncidentGrade,
@@ -38,6 +42,12 @@ import {
   MEDICATION_STAGE_LABELS as medStageLabels,
   MEDICATION_SEVERITY_LABELS as medSeverityLabels,
   HIGH_ALERT_LABELS as highAlertLabels,
+  INFECTION_TYPE_LABELS as infectionTypeLabels,
+  INFECTION_SITE_LABELS as infectionSiteLabels,
+  DEVICE_TYPE_LABELS as deviceTypeLabels,
+  PRESSURE_ULCER_GRADE_LABELS as pressureUlcerGradeLabels,
+  PRESSURE_ULCER_LOCATION_LABELS as pressureUlcerLocationLabels,
+  PRESSURE_ULCER_ORIGIN_LABELS as pressureUlcerOriginLabels,
 } from '@/types'
 
 const gradeLabels: Record<IncidentGrade, string> = {
@@ -172,6 +182,64 @@ interface ApiMedicationDetail {
   created_at: string
 }
 
+interface ApiInfectionDetail {
+  id: number
+  incident_id: number
+  patient_code: string
+  patient_name?: string
+  patient_age_group?: string
+  patient_gender?: string
+  room_number?: string
+  department_id?: number
+  physician_id?: number
+  diagnosis?: string
+  infection_type: string
+  infection_site?: string
+  infection_site_detail?: string
+  onset_date?: string
+  diagnosis_date?: string
+  pathogen?: string
+  is_mdro: boolean
+  pathogen_culture_result?: string
+  device_related: boolean
+  device_type?: string
+  device_insertion_date?: string
+  device_days?: number
+  is_hospital_acquired: boolean
+  admission_date?: string
+  department: string
+  antibiotic_used?: string
+  treatment_notes?: string
+  created_at: string
+}
+
+interface ApiPressureUlcerDetail {
+  id: number
+  incident_id: number
+  patient_code: string
+  patient_name?: string
+  patient_gender?: string
+  room_number?: string
+  ulcer_id: string
+  location: string
+  location_detail?: string
+  origin: string
+  discovery_date?: string
+  grade: string
+  push_length_width?: number
+  push_exudate?: number
+  push_tissue_type?: number
+  push_total?: number
+  length_cm?: number
+  width_cm?: number
+  depth_cm?: number
+  risk_factors?: string
+  treatment_plan?: string
+  note?: string
+  department: string
+  created_at: string
+}
+
 export default function IncidentDetail() {
   const { id } = useParams()
   const incidentId = Number(id)
@@ -186,6 +254,8 @@ export default function IncidentDetail() {
   // State for detail forms
   const [showFallDetailForm, setShowFallDetailForm] = useState(false)
   const [showMedicationDetailForm, setShowMedicationDetailForm] = useState(false)
+  const [showInfectionDetailForm, setShowInfectionDetailForm] = useState(false)
+  const [showPressureUlcerDetailForm, setShowPressureUlcerDetailForm] = useState(false)
 
   // Fetch incident
   const {
@@ -207,7 +277,9 @@ export default function IncidentDetail() {
     queryFn: async () => {
       try {
         const response = await approvalApi.getStatus(incidentId)
-        return response.data as ApiApproval[]
+        // API returns {incident_id, current_level, next_required_level, is_fully_approved, history}
+        // Extract history array which contains the approval records
+        return (response.data.history || []) as ApiApproval[]
       } catch {
         return []
       }
@@ -241,6 +313,34 @@ export default function IncidentDetail() {
       }
     },
     enabled: !!incident && incident.category === 'medication',
+  })
+
+  // Fetch infection detail (only for infection incidents)
+  const { data: infectionDetail } = useQuery({
+    queryKey: ['infectionDetail', incidentId],
+    queryFn: async () => {
+      try {
+        const response = await infectionDetailApi.getByIncident(incidentId)
+        return response.data as ApiInfectionDetail
+      } catch {
+        return null
+      }
+    },
+    enabled: !!incident && incident.category === 'infection',
+  })
+
+  // Fetch pressure ulcer detail (only for pressure_ulcer incidents)
+  const { data: pressureUlcerDetail } = useQuery({
+    queryKey: ['pressureUlcerDetail', incidentId],
+    queryFn: async () => {
+      try {
+        const response = await pressureUlcerDetailApi.getByIncident(incidentId)
+        return response.data as ApiPressureUlcerDetail
+      } catch {
+        return null
+      }
+    },
+    enabled: !!incident && incident.category === 'pressure_ulcer',
   })
 
   // Approve mutation
@@ -657,6 +757,253 @@ export default function IncidentDetail() {
             </div>
           )}
 
+          {/* Infection Detail Section */}
+          {incident.category === 'infection' && infectionDetail && (
+            <div className="card border-l-4 border-l-red-500">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                  감염 상세 정보
+                </h2>
+                {canEditDetailAnalysis() && (
+                  <button
+                    onClick={() => setShowInfectionDetailForm(true)}
+                    className="btn-secondary text-sm flex items-center gap-1"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    수정
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">환자등록번호</dt>
+                  <dd className="font-medium">{infectionDetail.patient_code}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">발생 부서</dt>
+                  <dd className="font-medium">{infectionDetail.department}</dd>
+                </div>
+                <div className="flex justify-between col-span-2">
+                  <dt className="text-gray-500">감염 유형</dt>
+                  <dd className="font-medium">
+                    {infectionTypeLabels[infectionDetail.infection_type as keyof typeof infectionTypeLabels] || infectionDetail.infection_type}
+                  </dd>
+                </div>
+                {infectionDetail.infection_site && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">감염 부위</dt>
+                    <dd className="font-medium">
+                      {infectionSiteLabels[infectionDetail.infection_site as keyof typeof infectionSiteLabels] || infectionDetail.infection_site}
+                    </dd>
+                  </div>
+                )}
+                {infectionDetail.onset_date && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">발생일</dt>
+                    <dd className="font-medium">{infectionDetail.onset_date}</dd>
+                  </div>
+                )}
+                {infectionDetail.pathogen && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">원인균</dt>
+                    <dd className="font-medium">{infectionDetail.pathogen}</dd>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">다제내성균 (MDRO)</dt>
+                  <dd className="font-medium">{infectionDetail.is_mdro ? '예' : '아니오'}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">기기 관련</dt>
+                  <dd className="font-medium">{infectionDetail.device_related ? '예' : '아니오'}</dd>
+                </div>
+                {infectionDetail.device_related && infectionDetail.device_type && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">관련 기기</dt>
+                    <dd className="font-medium">
+                      {deviceTypeLabels[infectionDetail.device_type as keyof typeof deviceTypeLabels] || infectionDetail.device_type}
+                    </dd>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">원내 감염</dt>
+                  <dd className="font-medium">{infectionDetail.is_hospital_acquired ? '예' : '아니오'}</dd>
+                </div>
+                {infectionDetail.antibiotic_used && (
+                  <div className="flex justify-between col-span-2">
+                    <dt className="text-gray-500">사용 항생제</dt>
+                    <dd className="font-medium">{infectionDetail.antibiotic_used}</dd>
+                  </div>
+                )}
+              </div>
+              {infectionDetail.treatment_notes && (
+                <div className="mt-4 pt-3 border-t">
+                  <dt className="text-sm text-gray-500">치료 내용</dt>
+                  <dd className="mt-1 text-gray-700">{infectionDetail.treatment_notes}</dd>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Infection Detail Add Button (when no detail exists) - Only QPS/MASTER can add */}
+          {incident.category === 'infection' && !infectionDetail && (
+            <div className="card border-l-4 border-l-red-500 border-dashed">
+              <div className="text-center py-4">
+                <AlertTriangle className="h-8 w-8 text-red-400 mx-auto mb-2" />
+                <p className="text-gray-500 mb-3">
+                  {canEditDetailAnalysis()
+                    ? '감염 상세 정보가 없습니다'
+                    : '감염 상세 분석 대기 중'}
+                </p>
+                {canEditDetailAnalysis() && (
+                  <button
+                    onClick={() => setShowInfectionDetailForm(true)}
+                    className="btn-secondary flex items-center gap-2 mx-auto"
+                  >
+                    <Plus className="h-4 w-4" />
+                    상세 정보 추가
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Pressure Ulcer Detail Section */}
+          {incident.category === 'pressure_ulcer' && pressureUlcerDetail && (
+            <div className="card border-l-4 border-l-pink-500">
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2">
+                  <HeartCrack className="h-5 w-5 text-pink-600" />
+                  욕창 상세 정보
+                  <span className="text-xs font-normal text-green-600 bg-green-50 px-2 py-0.5 rounded">분석 완료</span>
+                </h2>
+                {canEditDetailAnalysis() && (
+                  <button
+                    onClick={() => setShowPressureUlcerDetailForm(true)}
+                    className="btn-secondary text-sm flex items-center gap-1"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    수정
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">환자등록번호</dt>
+                  <dd className="font-medium">{pressureUlcerDetail.patient_code}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">욕창 ID</dt>
+                  <dd className="font-medium">{pressureUlcerDetail.ulcer_id}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">발생 부위</dt>
+                  <dd className="font-medium">
+                    {pressureUlcerLocationLabels[pressureUlcerDetail.location as keyof typeof pressureUlcerLocationLabels] || pressureUlcerDetail.location}
+                    {pressureUlcerDetail.location_detail && ` (${pressureUlcerDetail.location_detail})`}
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">발생 시점</dt>
+                  <dd className="font-medium">
+                    {pressureUlcerOriginLabels[pressureUlcerDetail.origin as keyof typeof pressureUlcerOriginLabels] || pressureUlcerDetail.origin}
+                  </dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">단계</dt>
+                  <dd className="font-medium">
+                    <span className={`badge ${
+                      pressureUlcerDetail.grade === 'stage_1' ? 'bg-yellow-100 text-yellow-800' :
+                      pressureUlcerDetail.grade === 'stage_2' ? 'bg-orange-100 text-orange-800' :
+                      pressureUlcerDetail.grade === 'stage_3' ? 'bg-red-100 text-red-800' :
+                      pressureUlcerDetail.grade === 'stage_4' ? 'bg-red-200 text-red-900' :
+                      'bg-purple-100 text-purple-800'
+                    }`}>
+                      {pressureUlcerGradeLabels[pressureUlcerDetail.grade as keyof typeof pressureUlcerGradeLabels] || pressureUlcerDetail.grade}
+                    </span>
+                  </dd>
+                </div>
+                {pressureUlcerDetail.discovery_date && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">발견일</dt>
+                    <dd className="font-medium">{pressureUlcerDetail.discovery_date}</dd>
+                  </div>
+                )}
+                {(pressureUlcerDetail.length_cm || pressureUlcerDetail.width_cm) && (
+                  <div className="flex justify-between">
+                    <dt className="text-gray-500">크기 (L×W×D)</dt>
+                    <dd className="font-medium">
+                      {pressureUlcerDetail.length_cm || '-'} × {pressureUlcerDetail.width_cm || '-'} × {pressureUlcerDetail.depth_cm || '-'} cm
+                    </dd>
+                  </div>
+                )}
+                {pressureUlcerDetail.push_total !== null && pressureUlcerDetail.push_total !== undefined && (
+                  <div className="col-span-2 mt-2 pt-2 border-t">
+                    <dt className="text-gray-500 mb-1">PUSH Score</dt>
+                    <dd className="font-medium">
+                      <span className={`text-lg ${
+                        pressureUlcerDetail.push_total <= 6 ? 'text-green-600' :
+                        pressureUlcerDetail.push_total <= 12 ? 'text-yellow-600' :
+                        'text-red-600'
+                      }`}>
+                        {pressureUlcerDetail.push_total}점
+                      </span>
+                      <span className="text-gray-400 text-xs ml-2">
+                        (면적 {pressureUlcerDetail.push_length_width || 0} + 삼출물 {pressureUlcerDetail.push_exudate || 0} + 조직유형 {pressureUlcerDetail.push_tissue_type || 0})
+                      </span>
+                    </dd>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <dt className="text-gray-500">발생 부서</dt>
+                  <dd className="font-medium">{pressureUlcerDetail.department}</dd>
+                </div>
+              </div>
+              {pressureUlcerDetail.risk_factors && (
+                <div className="mt-4 pt-3 border-t">
+                  <dt className="text-sm text-gray-500">위험 요인</dt>
+                  <dd className="mt-1 text-gray-700">{pressureUlcerDetail.risk_factors}</dd>
+                </div>
+              )}
+              {pressureUlcerDetail.treatment_plan && (
+                <div className="mt-3">
+                  <dt className="text-sm text-gray-500">치료 계획</dt>
+                  <dd className="mt-1 text-gray-700">{pressureUlcerDetail.treatment_plan}</dd>
+                </div>
+              )}
+              {pressureUlcerDetail.note && (
+                <div className="mt-3">
+                  <dt className="text-sm text-gray-500">비고</dt>
+                  <dd className="mt-1 text-gray-700">{pressureUlcerDetail.note}</dd>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Pressure Ulcer Detail Add Button (when no detail exists) - Only QPS/MASTER can add */}
+          {incident.category === 'pressure_ulcer' && !pressureUlcerDetail && (
+            <div className="card border-l-4 border-l-pink-500 border-dashed">
+              <div className="text-center py-4">
+                <HeartCrack className="h-8 w-8 text-pink-400 mx-auto mb-2" />
+                <p className="text-gray-500 mb-3">
+                  {canEditDetailAnalysis()
+                    ? '욕창 상세 정보가 없습니다'
+                    : '욕창 상세 분석 대기 중'}
+                </p>
+                {canEditDetailAnalysis() && (
+                  <button
+                    onClick={() => setShowPressureUlcerDetailForm(true)}
+                    className="btn-secondary flex items-center gap-2 mx-auto"
+                  >
+                    <Plus className="h-4 w-4" />
+                    상세 정보 추가
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Root Cause - Only visible to QPS/MASTER as reference */}
           {incident.root_cause && canViewReporterOptionalFields() && (
             <div className="card bg-blue-50 border border-blue-100">
@@ -890,6 +1237,39 @@ export default function IncidentDetail() {
               onSuccess={() => {
                 setShowMedicationDetailForm(false)
                 queryClient.invalidateQueries({ queryKey: ['medicationDetail', incidentId] })
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {showInfectionDetailForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full my-8 p-6 max-h-[90vh] overflow-y-auto">
+            <InfectionDetailForm
+              incidentId={incidentId}
+              existingDetail={infectionDetail}
+              onClose={() => setShowInfectionDetailForm(false)}
+              onSuccess={() => {
+                setShowInfectionDetailForm(false)
+                queryClient.invalidateQueries({ queryKey: ['infectionDetail', incidentId] })
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Pressure Ulcer Detail Form Modal */}
+      {showPressureUlcerDetailForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full my-8 p-6 max-h-[90vh] overflow-y-auto">
+            <PressureUlcerDetailForm
+              incidentId={incidentId}
+              existingDetail={pressureUlcerDetail}
+              onClose={() => setShowPressureUlcerDetailForm(false)}
+              onSuccess={() => {
+                setShowPressureUlcerDetailForm(false)
+                queryClient.invalidateQueries({ queryKey: ['pressureUlcerDetail', incidentId] })
               }}
             />
           </div>

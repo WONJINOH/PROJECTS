@@ -26,7 +26,7 @@ from app.models.indicator import (
 class IndicatorConfigBase(BaseModel):
     """Base indicator configuration schema."""
 
-    code: str = Field(..., min_length=1, max_length=50, description="Indicator code (e.g., PSR-001)")
+    code: Optional[str] = Field(None, min_length=1, max_length=50, description="Indicator code (e.g., PSR-001) - auto-generated if not provided")
     name: str = Field(..., min_length=1, max_length=200, description="Indicator name")
     category: IndicatorCategory
     description: Optional[str] = Field(None, max_length=1000)
@@ -57,9 +57,11 @@ class IndicatorConfigBase(BaseModel):
 
     @field_validator("code")
     @classmethod
-    def validate_code_format(cls, v: str) -> str:
-        """Validate code format (e.g., PSR-001, PU-001)."""
+    def validate_code_format(cls, v: Optional[str]) -> Optional[str]:
+        """Validate code format (e.g., PSR-001, PU-001) if provided."""
         import re
+        if v is None or v == "":
+            return None  # Allow None for auto-generation
         if not re.match(r"^[A-Z]{2,5}-\d{3}$", v.upper()):
             raise ValueError("Code must be in format like PSR-001, PU-001")
         return v.upper()
@@ -137,11 +139,28 @@ class IndicatorConfigResponse(BaseModel):
     auto_calculate: bool
 
     status: IndicatorStatus
+
+    # 승인 워크플로우 필드
+    approval_requested_at: Optional[datetime] = None
+    approved_at: Optional[datetime] = None
+    approved_by_id: Optional[int] = None
+    rejection_reason: Optional[str] = None
+
     created_at: datetime
     updated_at: datetime
     created_by_id: Optional[int] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class IndicatorApproveRequest(BaseModel):
+    """Schema for approving an indicator."""
+    comment: Optional[str] = Field(None, max_length=500)
+
+
+class IndicatorRejectRequest(BaseModel):
+    """Schema for rejecting an indicator."""
+    reason: str = Field(..., min_length=1, max_length=500, description="반려 사유 (필수)")
 
 
 class IndicatorConfigListResponse(BaseModel):

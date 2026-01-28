@@ -12,7 +12,10 @@ import {
   TrendingUp,
   TrendingDown,
   Target,
+  Check,
+  XCircle,
 } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
 import {
   LineChart,
   Line,
@@ -33,7 +36,12 @@ const statusColors: Record<string, string> = {
   active: 'bg-green-100 text-green-800',
   inactive: 'bg-gray-100 text-gray-800',
   planned: 'bg-blue-100 text-blue-800',
+  pending_approval: 'bg-yellow-100 text-yellow-800',
+  rejected: 'bg-red-100 text-red-800',
 }
+
+// Roles that can approve indicators
+const APPROVER_ROLES = ['qps_staff', 'director', 'admin', 'master']
 
 // Value input modal component
 function ValueInputModal({
@@ -187,13 +195,113 @@ function ValueInputModal({
   )
 }
 
+// Rejection reason modal component
+function RejectModal({
+  indicatorId,
+  onClose,
+  onSuccess,
+}: {
+  indicatorId: number
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [reason, setReason] = useState('')
+
+  const rejectMutation = useMutation({
+    mutationFn: () => indicatorApi.reject(indicatorId, reason),
+    onSuccess: () => {
+      onSuccess()
+      onClose()
+      alert('지표가 반려되었습니다.')
+    },
+    onError: () => {
+      alert('반려 처리에 실패했습니다.')
+    },
+  })
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!reason.trim()) {
+      alert('반려 사유를 입력해주세요.')
+      return
+    }
+    rejectMutation.mutate()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <h3 className="text-lg font-semibold text-red-600">지표 반려</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              반려 사유 *
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={4}
+              className="input-field"
+              placeholder="반려 사유를 입력해주세요..."
+              required
+            />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <button type="button" onClick={onClose} className="btn-secondary">
+              취소
+            </button>
+            <button
+              type="submit"
+              disabled={rejectMutation.isPending}
+              className="btn-primary bg-red-600 hover:bg-red-700"
+            >
+              {rejectMutation.isPending ? '처리 중...' : '반려'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function IndicatorDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
   const indicatorId = Number(id)
 
   const [showValueModal, setShowValueModal] = useState(false)
+  const [showRejectModal, setShowRejectModal] = useState(false)
   const [activeTab, setActiveTab] = useState<'info' | 'chart' | 'values'>('chart')
+
+  // Check if current user can approve
+  const canApprove = user && APPROVER_ROLES.includes(user.role)
+
+  // Approve mutation
+  const approveMutation = useMutation({
+    mutationFn: (comment?: string) => indicatorApi.approve(indicatorId, comment),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['indicator', indicatorId] })
+      alert('지표가 승인되었습니다.')
+    },
+    onError: () => {
+      alert('승인 처리에 실패했습니다.')
+    },
+  })
+
+  const handleApprove = () => {
+    if (confirm('이 지표를 승인하시겠습니까?')) {
+      approveMutation.mutate()
+    }
+  }
 
   // Fetch indicator data
   const { data: indicatorData, isLoading: isLoadingIndicator } = useQuery({
@@ -338,14 +446,62 @@ export default function IndicatorDetail() {
             </span>
           </div>
         </div>
-        <Link
-          to={`/indicators/${indicatorId}/edit`}
-          className="btn-secondary flex items-center gap-2"
-        >
-          <Edit className="h-4 w-4" />
-          편집
-        </Link>
+        <div className="flex items-center gap-2">
+          {/* Approve/Reject buttons for pending indicators */}
+          {indicator.status === 'pending_approval' && canApprove && (
+            <>
+              <button
+                onClick={handleApprove}
+                disabled={approveMutation.isPending}
+                className="btn-primary bg-green-600 hover:bg-green-700 flex items-center gap-2"
+              >
+                <Check className="h-4 w-4" />
+                {approveMutation.isPending ? '처리 중...' : '승인'}
+              </button>
+              <button
+                onClick={() => setShowRejectModal(true)}
+                className="btn-secondary text-red-600 border-red-300 hover:bg-red-50 flex items-center gap-2"
+              >
+                <XCircle className="h-4 w-4" />
+                반려
+              </button>
+            </>
+          )}
+          <Link
+            to={`/indicators/${indicatorId}/edit`}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <Edit className="h-4 w-4" />
+            편집
+          </Link>
+        </div>
       </div>
+
+      {/* Pending Approval Notice */}
+      {indicator.status === 'pending_approval' && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-medium text-yellow-800">승인 대기 중</h4>
+            <p className="text-sm text-yellow-700 mt-1">
+              이 지표는 아직 승인되지 않았습니다. QPS 담당자 또는 관리자의 승인이 필요합니다.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Rejected Notice */}
+      {indicator.status === 'rejected' && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+          <XCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-medium text-red-800">반려됨</h4>
+            <p className="text-sm text-red-700 mt-1">
+              이 지표는 반려되었습니다. 수정 후 다시 제출해주세요.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -635,6 +791,17 @@ export default function IndicatorDetail() {
         <ValueInputModal
           indicatorId={indicatorId}
           onClose={() => setShowValueModal(false)}
+        />
+      )}
+
+      {/* Reject Modal */}
+      {showRejectModal && (
+        <RejectModal
+          indicatorId={indicatorId}
+          onClose={() => setShowRejectModal(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['indicator', indicatorId] })
+          }}
         />
       )}
     </div>

@@ -3,28 +3,45 @@ import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMutation } from '@tanstack/react-query'
-import { AlertCircle, Save, Upload, Shield, Info } from 'lucide-react'
-import { incidentApi, CreateIncidentData } from '@/utils/api'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { AlertCircle, Save, Upload, Shield, Info, User } from 'lucide-react'
+import { incidentApi, lookupApi, CreateIncidentData } from '@/utils/api'
 import { useAuth } from '@/hooks/useAuth'
+import { WARD_OPTIONS, GENDER_OPTIONS, LOCATION_TYPE_OPTIONS, Department, Physician, LocationType } from '@/types'
 
 // Validation schema matching backend requirements
 const incidentSchema = z.object({
   category: z.enum(['fall', 'medication', 'pressure_ulcer', 'infection', 'medical_device', 'surgery', 'transfusion', 'other'], {
     required_error: '유형을 선택해주세요',
   }),
+  category_other_detail: z.string().max(200).optional(),
   grade: z.enum(['near_miss', 'no_harm', 'mild', 'moderate', 'severe', 'death'], {
     required_error: '등급을 선택해주세요',
   }),
   occurred_at: z.string().min(1, '발생일시를 입력해주세요'),
   location: z.string().min(1, '발생장소를 입력해주세요').max(200),
+  location_type: z.enum(['own_room', 'other_room', 'bathroom', 'hallway', 'rehabilitation', 'nursing_station', 'other']).optional(),
+  location_detail: z.string().max(200).optional(),
   description: z.string().min(10, '상세 내용을 10자 이상 입력해주세요'),
   immediate_action: z.string().min(5, '즉시 조치 내용을 5자 이상 입력해주세요'),
   reported_at: z.string().min(1, '보고일시를 입력해주세요'),
   reporter_name: z.string().optional(),
   root_cause: z.string().optional(),
   improvements: z.string().optional(),
-  department: z.string().optional(),
+  // 환자 정보 필드
+  patient_registration_no: z.string().min(1, '환자등록번호를 입력해주세요').max(50),
+  patient_name: z.string().min(1, '환자명을 입력해주세요').max(100),
+  patient_ward: z.enum(['ward_2', 'ward_3', 'ward_5', 'ward_6', 'ward_7', 'ward_8', 'ward_9', 'ward_10', 'ward_11', 'outpatient'], {
+    required_error: '병동을 선택해주세요',
+  }),
+  room_number: z.string().min(1, '병실을 입력해주세요').max(50),
+  patient_gender: z.enum(['M', 'F'], {
+    required_error: '성별을 선택해주세요',
+  }),
+  patient_age: z.number({ required_error: '연령을 입력해주세요' }).min(0, '연령은 0 이상이어야 합니다').max(150, '연령은 150 이하여야 합니다'),
+  patient_department_id: z.number({ required_error: '진료과를 선택해주세요' }).min(1, '진료과를 선택해주세요'),
+  patient_physician_id: z.number({ required_error: '담당 주치의를 선택해주세요' }).min(1, '담당 주치의를 선택해주세요'),
+  diagnosis: z.string().optional(),
 }).refine((data) => {
   // reporter_name required except for near_miss
   if (data.grade !== 'near_miss' && !data.reporter_name) {
@@ -34,6 +51,15 @@ const incidentSchema = z.object({
 }, {
   message: '근접오류가 아닌 경우 보고자 이름은 필수입니다',
   path: ['reporter_name'],
+}).refine((data) => {
+  // category_other_detail required when category is 'other'
+  if (data.category === 'other' && !data.category_other_detail) {
+    return false
+  }
+  return true
+}, {
+  message: '기타를 선택한 경우 상세 내용을 입력해주세요',
+  path: ['category_other_detail'],
 })
 
 type IncidentForm = z.infer<typeof incidentSchema>
@@ -41,12 +67,12 @@ type IncidentForm = z.infer<typeof incidentSchema>
 const categories = [
   { value: 'fall', label: '낙상' },
   { value: 'medication', label: '투약' },
-  { value: 'pressure_ulcer', label: '욕창' },
   { value: 'infection', label: '감염' },
   { value: 'medical_device', label: '의료기기' },
-  { value: 'surgery', label: '수술' },
+  { value: 'surgery', label: '수술/시술' },
   { value: 'transfusion', label: '수혈' },
   { value: 'other', label: '기타' },
+  // 욕창은 별도 욕창관리 메뉴에서 욕창발생보고서로 관리
 ]
 
 const grades = [
@@ -79,6 +105,24 @@ export default function IncidentReport() {
   })
 
   const selectedGrade = watch('grade')
+  const selectedCategory = watch('category')
+  const selectedLocationType = watch('location_type')
+  const selectedDepartmentId = watch('patient_department_id')
+
+  // Fetch departments
+  const { data: departmentsData } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => lookupApi.listDepartments(true),
+  })
+  const departments: Department[] = departmentsData?.data || []
+
+  // Fetch physicians for selected department
+  const { data: physiciansData } = useQuery({
+    queryKey: ['physicians', selectedDepartmentId],
+    queryFn: () => lookupApi.listPhysicians({ department_id: selectedDepartmentId }),
+    enabled: !!selectedDepartmentId,
+  })
+  const physicians: Physician[] = physiciansData?.data || []
 
   // Auto-fill reporter name from logged-in user
   useEffect(() => {
@@ -102,6 +146,11 @@ export default function IncidentReport() {
       setIsAnonymous(false)
     }
   }, [selectedGrade])
+
+  // Reset physician when department changes
+  useEffect(() => {
+    setValue('patient_physician_id', 0)
+  }, [selectedDepartmentId, setValue])
 
   const createMutation = useMutation({
     mutationFn: (data: CreateIncidentData) => incidentApi.create(data),
@@ -170,6 +219,20 @@ export default function IncidentReport() {
               {errors.category && (
                 <p className="mt-1 text-sm text-red-600">{errors.category.message}</p>
               )}
+              {/* 기타 유형 상세 입력 */}
+              {selectedCategory === 'other' && (
+                <div className="mt-2">
+                  <input
+                    {...register('category_other_detail')}
+                    type="text"
+                    placeholder="기타 유형 상세 내용을 입력해주세요"
+                    className="input-field"
+                  />
+                  {errors.category_other_detail && (
+                    <p className="mt-1 text-sm text-red-600">{errors.category_other_detail.message}</p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Grade */}
@@ -205,10 +268,36 @@ export default function IncidentReport() {
               )}
             </div>
 
-            {/* Location */}
+            {/* Location Type Dropdown */}
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                발생장소 *
+                발생장소 유형
+              </label>
+              <select {...register('location_type')} className="input-field mt-1">
+                <option value="">선택하세요</option>
+                {LOCATION_TYPE_OPTIONS.map((loc) => (
+                  <option key={loc.value} value={loc.value}>
+                    {loc.label}
+                  </option>
+                ))}
+              </select>
+              {/* 조건부 상세 입력 */}
+              {selectedLocationType && LOCATION_TYPE_OPTIONS.find(l => l.value === selectedLocationType)?.needsDetail && (
+                <div className="mt-2">
+                  <input
+                    {...register('location_detail')}
+                    type="text"
+                    placeholder={LOCATION_TYPE_OPTIONS.find(l => l.value === selectedLocationType)?.detailPlaceholder || '상세 위치'}
+                    className="input-field"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Location (기존 텍스트 필드 - 하위 호환성) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                발생장소 상세 *
               </label>
               <input
                 {...register('location')}
@@ -219,6 +308,7 @@ export default function IncidentReport() {
               {errors.location && (
                 <p className="mt-1 text-sm text-red-600">{errors.location.message}</p>
               )}
+              <p className="mt-1 text-xs text-gray-500">위치 유형 선택과 함께 구체적인 장소를 입력해주세요</p>
             </div>
 
             {/* Reporter Name */}
@@ -279,18 +369,180 @@ export default function IncidentReport() {
                 <p className="mt-1 text-sm text-red-600">{errors.reported_at.message}</p>
               )}
             </div>
+          </div>
+        </div>
 
-            {/* Department */}
+        {/* Patient Info Card */}
+        <div className="card">
+          <div className="flex items-center gap-2 mb-4">
+            <User className="h-5 w-5 text-blue-600" />
+            <h2 className="text-lg font-semibold">환자 정보</h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Patient Registration No */}
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                부서
+                환자등록번호 *
               </label>
               <input
-                {...register('department')}
+                {...register('patient_registration_no')}
                 type="text"
-                placeholder="예: 간호부, 재활의학과"
+                placeholder="예: 12345678"
                 className="input-field mt-1"
-                defaultValue={user?.department || ''}
+              />
+              {errors.patient_registration_no && (
+                <p className="mt-1 text-sm text-red-600">{errors.patient_registration_no.message}</p>
+              )}
+            </div>
+
+            {/* Patient Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                환자명 *
+              </label>
+              <input
+                {...register('patient_name')}
+                type="text"
+                placeholder="환자 이름"
+                className="input-field mt-1"
+              />
+              {errors.patient_name && (
+                <p className="mt-1 text-sm text-red-600">{errors.patient_name.message}</p>
+              )}
+            </div>
+
+            {/* Ward */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                병동 *
+              </label>
+              <select {...register('patient_ward')} className="input-field mt-1">
+                <option value="">선택하세요</option>
+                {WARD_OPTIONS.map((ward) => (
+                  <option key={ward.value} value={ward.value}>
+                    {ward.label}
+                  </option>
+                ))}
+              </select>
+              {errors.patient_ward && (
+                <p className="mt-1 text-sm text-red-600">{errors.patient_ward.message}</p>
+              )}
+            </div>
+
+            {/* Room Number */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                병실 *
+              </label>
+              <input
+                {...register('room_number')}
+                type="text"
+                placeholder="예: 501호"
+                className="input-field mt-1"
+              />
+              {errors.room_number && (
+                <p className="mt-1 text-sm text-red-600">{errors.room_number.message}</p>
+              )}
+            </div>
+
+            {/* Gender */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                성별 *
+              </label>
+              <div className="mt-2 flex gap-4">
+                {GENDER_OPTIONS.map((option) => (
+                  <label key={option.value} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      {...register('patient_gender')}
+                      type="radio"
+                      value={option.value}
+                      className="w-4 h-4 text-primary-600 border-gray-300 focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-gray-700">{option.label}</span>
+                  </label>
+                ))}
+              </div>
+              {errors.patient_gender && (
+                <p className="mt-1 text-sm text-red-600">{errors.patient_gender.message}</p>
+              )}
+            </div>
+
+            {/* Age */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                연령 *
+              </label>
+              <input
+                {...register('patient_age', { valueAsNumber: true })}
+                type="number"
+                min={0}
+                max={150}
+                placeholder="나이"
+                className="input-field mt-1"
+              />
+              {errors.patient_age && (
+                <p className="mt-1 text-sm text-red-600">{errors.patient_age.message}</p>
+              )}
+            </div>
+
+            {/* Patient Department */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                환자 진료과 *
+              </label>
+              <select
+                {...register('patient_department_id', { valueAsNumber: true })}
+                className="input-field mt-1"
+              >
+                <option value="">선택하세요</option>
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </option>
+                ))}
+              </select>
+              {errors.patient_department_id && (
+                <p className="mt-1 text-sm text-red-600">{errors.patient_department_id.message}</p>
+              )}
+            </div>
+
+            {/* Patient Physician */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                담당 주치의 *
+              </label>
+              <select
+                {...register('patient_physician_id', { valueAsNumber: true })}
+                className="input-field mt-1"
+                disabled={!selectedDepartmentId}
+              >
+                <option value="">선택하세요</option>
+                {physicians.map((physician) => (
+                  <option key={physician.id} value={physician.id}>
+                    {physician.name}
+                  </option>
+                ))}
+              </select>
+              {!selectedDepartmentId && (
+                <p className="mt-1 text-xs text-gray-500">진료과를 먼저 선택해주세요</p>
+              )}
+              {errors.patient_physician_id && (
+                <p className="mt-1 text-sm text-red-600">{errors.patient_physician_id.message}</p>
+              )}
+            </div>
+
+            {/* Diagnosis */}
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">
+                진단명
+              </label>
+              <input
+                {...register('diagnosis')}
+                type="text"
+                placeholder="진단명 (선택 입력)"
+                className="input-field mt-1"
               />
             </div>
           </div>

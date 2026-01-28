@@ -103,6 +103,37 @@ class BehaviorType(str, enum.Enum):
     PENDING_REVIEW = "pending_review"    # 검토 대기
 
 
+class LocationType(str, enum.Enum):
+    """발생장소 유형 (Feature 2)"""
+    OWN_ROOM = "own_room"            # 본인병실
+    OTHER_ROOM = "other_room"        # 타병실
+    BATHROOM = "bathroom"            # 화장실
+    HALLWAY = "hallway"              # 복도
+    REHABILITATION = "rehabilitation"  # 재활치료실
+    NURSING_STATION = "nursing_station"  # 간호사실/처치실
+    OTHER = "other"                  # 기타
+
+
+class PatientWard(str, enum.Enum):
+    """병동 Enum"""
+    WARD_2 = "ward_2"        # 2병동
+    WARD_3 = "ward_3"        # 3병동
+    WARD_5 = "ward_5"        # 5병동
+    WARD_6 = "ward_6"        # 6병동
+    WARD_7 = "ward_7"        # 7병동
+    WARD_8 = "ward_8"        # 8병동
+    WARD_9 = "ward_9"        # 9병동
+    WARD_10 = "ward_10"      # 10병동
+    WARD_11 = "ward_11"      # 11병동
+    OUTPATIENT = "outpatient"  # 외래 환자
+
+
+class PatientGender(str, enum.Enum):
+    """환자 성별 Enum"""
+    MALE = "M"
+    FEMALE = "F"
+
+
 class IncidentCategory(str, enum.Enum):
     """Incident categories."""
 
@@ -148,18 +179,29 @@ class Incident(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
+    # === 사고번호 (자동 생성: YYYYMMDD-NN) ===
+    incident_number = Column(String(15), unique=True, index=True, nullable=True)
+
     # === Common Page Required Fields ===
     # Use values_callable to ensure enum values (lowercase) are sent to PostgreSQL
     category = Column(
         SQLEnum(IncidentCategory, values_callable=lambda x: enum_values_callable(x)),
         nullable=False, index=True
     )
+    # 기타 유형 선택 시 상세 입력
+    category_other_detail = Column(String(200), nullable=True)
     grade = Column(
         SQLEnum(IncidentGrade, values_callable=lambda x: enum_values_callable(x)),
         nullable=False, index=True
     )
     occurred_at = Column(DateTime(timezone=True), nullable=False)
-    location = Column(String(200), nullable=False)
+    location = Column(String(200), nullable=False)  # 기존 필드 (하위 호환성)
+    # 발생장소 드롭다운 (Feature 2)
+    location_type = Column(
+        SQLEnum(LocationType, values_callable=lambda x: enum_values_callable(x)),
+        nullable=True, index=True
+    )
+    location_detail = Column(String(200), nullable=True)  # 타병실, 화장실 등 상세 위치
     description = Column(Text, nullable=False)
 
     # REQUIRED: immediate action taken
@@ -227,9 +269,25 @@ class Incident(Base):
         nullable=True,
     )
 
+    # === Patient Info (공통 폼에서 입력) ===
+    patient_registration_no = Column(String(50), nullable=True)  # 환자등록번호 (필수)
+    patient_name = Column(String(100), nullable=True)  # 환자명 (필수)
+    patient_ward = Column(
+        SQLEnum(PatientWard, values_callable=lambda x: enum_values_callable(x)),
+        nullable=True, index=True
+    )  # 병동 (필수)
+    room_number = Column(String(50), nullable=True)  # 병실 (필수)
+    patient_gender = Column(
+        SQLEnum(PatientGender, values_callable=lambda x: enum_values_callable(x)),
+        nullable=True
+    )  # 성별 (필수)
+    patient_age = Column(Integer, nullable=True)  # 연령 (필수)
+    patient_department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)  # 환자 진료과 (필수)
+    patient_physician_id = Column(Integer, ForeignKey("physicians.id"), nullable=True)  # 담당 주치의 (필수)
+    diagnosis = Column(String(500), nullable=True)  # 진단명 (선택)
+
     # === Metadata ===
     reporter_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    department = Column(String(100), nullable=True)
     status = Column(String(50), default="draft", index=True)  # draft, submitted, approved, closed
     is_deleted = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
@@ -240,6 +298,22 @@ class Incident(Base):
     attachments = relationship("Attachment", back_populates="incident")
     approvals = relationship("Approval", back_populates="incident")
     actions = relationship("Action", back_populates="incident")
+    patient_department = relationship("Department", foreign_keys=[patient_department_id])
+    patient_physician = relationship("Physician", foreign_keys=[patient_physician_id])
+
+    @property
+    def patient_department_name(self) -> Optional[str]:
+        """환자 진료과명 (조인 결과)"""
+        if self.patient_department:
+            return self.patient_department.name
+        return None
+
+    @property
+    def patient_physician_name(self) -> Optional[str]:
+        """담당 주치의명 (조인 결과)"""
+        if self.patient_physician:
+            return self.patient_physician.name
+        return None
 
     def __repr__(self) -> str:
         return f"<Incident {self.id} ({self.category.value}, {self.grade.value})>"

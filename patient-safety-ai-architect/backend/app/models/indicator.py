@@ -66,6 +66,8 @@ class IndicatorStatus(str, enum.Enum):
     ACTIVE = "active"
     INACTIVE = "inactive"
     PLANNED = "planned"  # 추후 도입 예정
+    PENDING_APPROVAL = "pending_approval"  # 승인 대기
+    REJECTED = "rejected"  # 반려됨
 
 
 class IndicatorConfig(Base):
@@ -106,7 +108,13 @@ class IndicatorConfig(Base):
     auto_calculate = Column(Boolean, default=False)  # 자동 계산 여부
 
     # 상태
-    status = Column(Enum(IndicatorStatus), default=IndicatorStatus.ACTIVE)
+    status = Column(Enum(IndicatorStatus), default=IndicatorStatus.PENDING_APPROVAL)
+
+    # 승인 워크플로우
+    approval_requested_at = Column(DateTime, nullable=True)  # 승인 요청 시점
+    approved_at = Column(DateTime, nullable=True)  # 승인 시점
+    approved_by_id = Column(Integer, nullable=True)  # 승인자 ID
+    rejection_reason = Column(Text, nullable=True)  # 반려 사유
 
     # 메타데이터
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

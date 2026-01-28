@@ -106,9 +106,18 @@ class MedicationErrorDetail(Base):
     # 기본 사고 연결
     incident_id = Column(Integer, ForeignKey("incidents.id"), nullable=False)
 
-    # 환자 정보 (익명화)
-    patient_code = Column(String(50), nullable=False, index=True)
+    # ===== 환자 정보 (PDF 양식 기준) =====
+    # 기존 필드 (필드명 변경: patient_code → patient_registration_no 개념적)
+    patient_code = Column(String(50), nullable=False, index=True)  # 환자등록번호
     patient_age_group = Column(String(20), nullable=True)
+
+    # 신규 환자정보 필드
+    patient_name = Column(String(100), nullable=True)  # 환자명
+    patient_gender = Column(String(10), nullable=True)  # 성별
+    room_number = Column(String(50), nullable=True)  # 병실
+    department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)  # 환자 진료과
+    physician_id = Column(Integer, ForeignKey("physicians.id"), nullable=True)  # 담당 주치의
+    diagnosis = Column(String(500), nullable=True)  # 진단명
 
     # 오류 정보
     error_type = Column(Enum(MedicationErrorType), nullable=False, index=True)
@@ -132,6 +141,7 @@ class MedicationErrorDetail(Base):
     # 발견
     discovered_by_role = Column(String(50), nullable=True)
     discovery_method = Column(String(100), nullable=True)
+    discovery_method_detail = Column(String(200), nullable=True)  # 발견 방법이 "기타"일 때 상세
 
     # ===== PSR 양식 기반 필드 (대시보드용) =====
 

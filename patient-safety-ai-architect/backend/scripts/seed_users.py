@@ -61,6 +61,14 @@ SEED_USERS = [
         "role": "director",
         "department": "경영진",
     },
+    {
+        "username": "master",
+        "email": "master@hospital.local",
+        "password": "master1234",
+        "full_name": "마스터관리자",
+        "role": "master",
+        "department": "시스템관리",
+    },
 ]
 
 
